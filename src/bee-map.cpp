@@ -113,37 +113,45 @@ int read_beesoft_map(const char *mapName, map_type *map)
 
 int main(int argc, char **argv)
 {
-	map_type map;
+	if( argc == 2 )
+	{
+		map_type map;
 	
-	string map_name = "../data/map/wean.dat";
-	read_beesoft_map(map_name.c_str(), &map);
+		string map_name(argv[1]);
+		read_beesoft_map(map_name.c_str(), &map);
 
-	// Check Map information
-	cout << "Map information: " << endl;
-	cout << "Resolution " << map.resolution << " SizeX " << map.size_x << " SizeY " << map.size_y << endl;
-	cout << "Min_Max X " << map.min_x << " " << map.max_x << endl;
-	cout << "Min_Max Y " << map.min_y << " " << map.max_y << endl;
-	cout << "Offset X " << map.offset_x << " Offset Y " << map.offset_y << endl;
+		// Check Map information
+		cout << "Map information: " << endl;
+		cout << "Resolution " << map.resolution << " SizeX " << map.size_x << " SizeY " << map.size_y << endl;
+		cout << "Min_Max X " << map.min_x << " " << map.max_x << endl;
+		cout << "Min_Max Y " << map.min_y << " " << map.max_y << endl;
+		cout << "Offset X " << map.offset_x << " Offset Y " << map.offset_y << endl;
 
-	// visualize
-	Mat image = Mat::zeros( map.size_x, map.size_y, CV_32FC1 );
+		// visualize
+		Mat image = Mat::zeros( map.size_x, map.size_y, CV_32FC1 );
 
-	cout << "Image Property" << endl;
-	cout << "Row: " << image.rows << " Col: " << image.cols << endl;
-	cout << "Step: " << image.step << " Dim: " << image.dims << endl;
-	cout << "ElemSize: " << image.elemSize() << " Depth: " << image.depth() << endl;
-	cout << "Channels: " << image.channels() << endl;
+		cout << "Image Property" << endl;
+		cout << "Row: " << image.rows << " Col: " << image.cols << endl;
+		cout << "Step: " << image.step << " Dim: " << image.dims << endl;
+		cout << "ElemSize: " << image.elemSize() << " Depth: " << image.depth() << endl;
+		cout << "Channels: " << image.channels() << endl;
 
-	// unsigned char *imgMat = (unsigned char*)(image.data);
-	for (unsigned int i = 0; i < image.rows; i++)
-		for (unsigned int j = 0; j < image.cols; j++){
-			if (map.cells[i][j] > 0.0)
-				image.at<float>(i, j) = map.cells[i][j]; 
-		} 
-  	// Draw a circle 
-  	//circle( image, Point( 200, 200 ), 32.0, Scalar( 0, 0, 255 ), 1, 8 );
-  	imshow("Image",image);
-	waitKey( 0 );
+		// unsigned char *imgMat = (unsigned char*)(image.data);
+		for (unsigned int i = 0; i < image.rows; i++)
+			for (unsigned int j = 0; j < image.cols; j++){
+				if (map.cells[i][j] > 0.0)
+					image.at<float>(i, j) = map.cells[i][j]; 
+			} 
+	  	// Draw a circle 
+	  	//circle( image, Point( 200, 200 ), 32.0, Scalar( 0, 0, 255 ), 1, 8 );
+	  	imshow("Image",image);
+		waitKey( 0 );
+	}
+	else
+	{
+		cout << "ERROR: Enter dat file name" << endl;
+	}
+	
 	return 0;
 }
 
