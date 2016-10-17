@@ -1,3 +1,14 @@
+//*****************************************************************
+//  pf.cpp
+//  16831 Statistical Techniques, Fall 2016
+//  Project 3: Robot Localization
+//
+//  Created by Abhishek Bhatia, Bishwamoy Sinha Roy, Eric Markvicka.
+//
+//  This soruce file contains the class implementation of the particle
+//	filter.
+//*****************************************************************
+
 #include "pf.h"
 
 /* CONSTRUCTOR */
