@@ -1,16 +1,17 @@
 //*****************************************************************
-//  bee-map.h
+//  Types.h
 //  16831 Statistical Techniques, Fall 2016
 //  Project 3: Robot Localization
 //
 //  Created by Abhishek Bhatia, Bishwamoy Sinha Roy, Eric Markvicka.
 //
-//  This header file contains the bee-map method declarations.
+//  This header file contains the structs definitions to store map data and robot (laser and odometry) data.
 //*****************************************************************
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef TYPES_H
+#define TYPES_H
+
+#define RANGE_LEN 180
 
 typedef struct {
 	int resolution, size_x, size_y;
@@ -19,5 +20,17 @@ typedef struct {
 	float **cells;
 } map_type;
 
-void new_hornetsoft_map(map_type *map, int size_x, int size_y);
-int read_beesoft_map(const char *mapName, map_type *map);
+enum LogType
+{
+	L_DATA = 0, O_DATA = 1
+};
+
+typedef struct {
+	LogType type;
+	float x, y, xl, yl;
+	float theta, thetal;
+	double ts;
+	float* r; 
+} log_type;
+
+#endif
