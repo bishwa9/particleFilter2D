@@ -18,7 +18,7 @@
 
 using namespace std;
 
-typedef list<int>* particle_type;
+typedef list<float>* particle_type;
 
 class pf
 {
@@ -29,12 +29,24 @@ private:
 	list< particle_type > *_curSt;
 	//list of particles representing 
 	list< particle_type > *_nxtSt;
+	//maximum number of particles (upper limit if using adaptive)
+	int _maxP;
 
 	//don't call the default constructor
 	pf();
+
+	//Helper functions
+	float getParticleWeight( particle_type particle, log_type *data );
+
+	void resampleW( list< particle_type > *resampledSt, list<float> *Ws );
+
+	void init();
 public:
-	pf(map_type *map);
+	pf(map_type *map, int max_particles);
 	~pf();
+
+	/* RESET PARTICLE FILTER */
+	void reset();
 
 	/* SENSOR UPDATE */
 	void sensor_update( log_type *data );

@@ -8,6 +8,8 @@
 //  This is the main source file.
 //**************************************************************
 
+#include <iostream>
+
 #include "Parser.h"
 
 #define MAP_UNIT_TEST

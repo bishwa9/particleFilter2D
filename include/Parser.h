@@ -8,7 +8,14 @@
 //  This header file contains the parser class declaration.
 //*****************************************************************
 
-#include <bits/stdc++.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+
+#include <fstream>
+#include <sstream>
+#include <vector>
+
 #include "Types.h"
 
 using namespace std;
