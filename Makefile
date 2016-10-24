@@ -1,5 +1,10 @@
+OPENCV=`pkg-config opencv --cflags --libs`
+FLAGS=-std=c++11
+SRC_FILES=./src/Parser.cpp ./src/pf.cpp ./src/bmm.cpp ./src/main.cpp
+INCLUDE_FILES=./include/
+
 all:
-	g++ -std=c++11 ./src/Parser.cpp ./src/pf.cpp ./src/main.cpp -I ./include/ -o ./bin/main `pkg-config opencv --cflags --libs`
+	g++ $(FLAGS) $(SRC_FILES) -I $(INCLUDE_FILES) -o ./bin/main $(OPENCV)
 
 clean:
 	$(RM) ./bin/*
