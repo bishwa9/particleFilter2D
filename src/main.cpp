@@ -12,12 +12,20 @@
 
 #include "Parser.h"
 
-#define MAP_UNIT_TEST
+//#define MAP_UNIT_TEST
+#define BMM_UNIT_TEST
 
 #ifdef MAP_UNIT_TEST
 	#include <opencv2/core/core.hpp>
 	#include <opencv2/highgui/highgui.hpp>
 	using namespace cv;
+#endif
+
+#ifdef BMM_UNIT_TEST
+	#include <fstream>
+	#include "bmm.h"
+
+	using namespace std;
 #endif
 
 // Unit test
@@ -67,4 +75,28 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+#endif
+
+#ifdef BMM_UNIT_TEST
+int main()
+{
+	ofstream p_file("dist.txt");
+	beamMeasurementModel bmm;
+	int resolution = 1;
+	float maxRange = 0.0;
+
+	if( !bmm.get_param(MAX_RANGE, &maxRange) )
+	{
+		printf("ERROR!\n");
+		return 0;
+	}
+	
+	for(float x_t = 0; x_t < maxRange; x_t+=resolution)
+	{
+		float prob = bmm.getP( x_t );
+		p_file << prob << endl;
+	}
+	p_file.close();
+	return 0;
+}
 #endif

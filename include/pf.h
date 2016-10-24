@@ -12,38 +12,59 @@
 #ifndef _PF_H
 #define _PF_H
 
-#include <list>
+#include <vector>
+#include <stdlib.h>
 
-#include "types.h"
+#ifdef PARALLELIZE
+#include <omp.h>
+#endif
+
+#include "Types.h"
+#include "bmm.h"
 
 using namespace std;
 
-typedef list<float>* particle_type;
+typedef vector<float>* particle_type;
+enum particle_description {X_POS=0, Y_POS, BEARING_POS};
 
 class pf
 {
 private:
 	//map
 	map_type *_map;
-	//list of particles representing 
-	list< particle_type > *_curSt;
-	//list of particles representing 
-	list< particle_type > *_nxtSt;
+	//vector of particles representing 
+	vector< particle_type > *_curSt;
+	//vector of particles representing 
+	vector< particle_type > *_nxtSt;
 	//maximum number of particles (upper limit if using adaptive)
 	int _maxP;
+
+	//range finder model
+	beamMeasurementModel *_bmm;
 
 	//don't call the default constructor
 	pf();
 
 	//Helper functions
-	float getParticleWeight( particle_type particle, log_type *data );
+	vector<float> *expectedReadings( particle_type particle ) const;
 
-	void resampleW( list< particle_type > *resampledSt, list<float> *Ws );
+	float getParticleWeight( particle_type particle, log_type *data ) const;
+
+	void resampleW( vector< particle_type > *resampledSt, vector<float> *Ws );
 
 	void init();
 public:
+	static const int beam_fov = 180; 
+	static const int beam_resolution = 1; 
+	static const int res_x = 10;
+	static const int res_y = 10;
+	static constexpr float obst_thres = 0.5;
+
 	pf(map_type *map, int max_particles);
 	~pf();
+
+	int convToGrid_x(float x) const;
+	int convToGrid_y(float y) const;
 
 	/* RESET PARTICLE FILTER */
 	void reset();
