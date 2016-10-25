@@ -27,7 +27,8 @@
 
 using namespace std;
 
-typedef struct particle_description
+typedef struct 
+
 {
 	float x;
 	float y;
@@ -37,6 +38,9 @@ typedef struct particle_description
 class pf
 {
 private:
+
+// EVERY THING IS PUBLIC FOR UNIT TESTING
+public:
 	//map
 	mutex _mapMutex;
 	map_type *_map;
@@ -71,7 +75,7 @@ private:
 	particle_type motion_sample(particle_type u, float sigma=0.1) const;
 
 	void init();
-public:
+//public:
 	static const int beam_fov = 180; 
 	static const int beam_resolution = 1; 
 	static const int res_x = 10;

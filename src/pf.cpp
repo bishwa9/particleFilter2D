@@ -40,6 +40,8 @@ float pf::RandomFloat(float min, float max)
 	return min + r * (max - min);
 }
 
+// TESTER : ABHISHEK
+// TESTS : define 10 particles and check range
 void pf::init()
 {
 	for (int i = 0; i < _maxP; i++) 
@@ -108,6 +110,10 @@ float euclid(float x1, float y1, float x2, float y2)
 
 	return dist;
 }
+
+
+// TESTER : BISHWAMOY SINHA FUCKING ROY
+// TEST : BMM IS DONE, FOR A PARTICLE TEST EXPECTED READINGS
 
 vector<float> *pf::expectedReadings( particle_type particle ) const
 {
@@ -199,6 +205,9 @@ float pf::getParticleWeight( particle_type particle, log_type *data ) const
 	return tot;
 }
 
+
+// TESTER : ABHISHEK
+// TEST : TEST AFTER VISUALIZER IS DONE
 //Helper function: uses low variance sampling to resample based on particle weights
 void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 {
@@ -242,6 +251,10 @@ void pf::sensor_update( log_type *data )
 }
 
 /* MOTION UPDATE */
+
+// TESTER : ERIC
+// TEST : PARSE MAP AND LOG FILE, ACCESS ODOMETRY DATA ITERATIVELY, CHECK STATE UPDATES
+
 particle_type pf::motion_sample(particle_type u, float sigma) const
 {
 	//sample x
@@ -281,27 +294,27 @@ void pf::motion_update( log_type *data )
 
 	float **grid_data = _map->cells;
 	
-#if PARALLELIZE == 1
+/*#if PARALLELIZE == 1
 #pragma omp parallel for
-#endif
-	for (vector<particle_type *>::iterator particle = _curSt->begin(); particle != _curSt->end(); particle++)
+#endif*/
+	for (particle_type *particle : *_curSt)
 	{
 		particle_type dP = motion_sample(dP_u);
 
-		(*particle)->x += dP.x;
-		(*particle)->y += dP.y;
+		particle->x += dP.x;
+		particle->y += dP.y;
 
-		int x_ = convToGrid_x((*particle)->x);
-		int y_ = convToGrid_y((*particle)->y);
+		int x_ = convToGrid_x(particle->x);
+		int y_ = convToGrid_y(particle->y);
 
 		if( grid_data[x_][y_] > obst_thres )
 		{
-			(*particle)->x -= dP.x;
-			(*particle)->y -= dP.y;
+			particle->x -= dP.x;
+			particle->y -= dP.y;
 		}
 
-		(*particle)->bearing += dP.bearing;
-	    (*particle)->bearing = fmod((*particle)->bearing, 2*M_PI);
-		if ((*particle)->bearing < 0) (*particle)->bearing += 2*M_PI;
+		particle->bearing += dP.bearing;
+	    particle->bearing = fmod(particle->bearing, 2*M_PI);
+		if (particle->bearing < 0) particle->bearing += 2*M_PI;
 	}
 }
