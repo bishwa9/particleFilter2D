@@ -48,6 +48,15 @@ void pf::reset()
 	init();
 }
 
+const vector< particle_type > *pf::access_st() const
+{
+	return _curSt;
+}
+const map_type *pf::access_map() const
+{
+	return _map;
+}
+
 int pf::convToGrid_x(float x) const
 {
 	return static_cast<int>( x/res_x );
@@ -75,9 +84,9 @@ vector<float> *pf::expectedReadings( particle_type particle ) const
 {
 //TODO
 	vector<float> *expected = new vector<float>(beam_fov / beam_resolution);
-	float particle_bearing = particle->at(BEARING_POS);
-	int x0 = convToGrid_x( particle->at(X_POS) );
-	int y0 = convToGrid_y( particle->at(Y_POS) );
+	float particle_bearing = particle.bearing;
+	int x0 = convToGrid_x( particle.x );
+	int y0 = convToGrid_y( particle.y );
 	float range = 0.0;
 	_bmm->get_param(MAX_RANGE, &range);
 

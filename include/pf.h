@@ -23,12 +23,14 @@
 #include <omp.h>
 #endif
 
-
-
 using namespace std;
 
-typedef vector<float>* particle_type;
-enum particle_description {X_POS=0, Y_POS, BEARING_POS};
+typedef struct particle_description
+{
+	float x;
+	float y;
+	float bearing;
+} particle_type;
 
 class pf
 {
@@ -68,6 +70,9 @@ public:
 
 	int convToGrid_x(float x) const;
 	int convToGrid_y(float y) const;
+
+	const vector< particle_type > *access_st() const;
+	const map_type *access_map() const;
 
 	/* RESET PARTICLE FILTER */
 	void reset();
