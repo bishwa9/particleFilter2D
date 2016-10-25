@@ -10,12 +10,17 @@
 
 #include <iostream>
 
-#include "Parser.h"
-
-#define MAP_UNIT_TEST
+//#define MAP_UNIT_TEST
 //#define BMM_UNIT_TEST
+#define VISUALIZE_UNIT_TEST
+
+#ifdef VISUALIZE_UNIT_TEST
+	#include "Parser.h"
+	#include "pf.h"
+#endif
 
 #ifdef MAP_UNIT_TEST
+	#include "Parser.h"
 	#include <opencv2/core/core.hpp>
 	#include <opencv2/highgui/highgui.hpp>
 	using namespace cv;
@@ -99,4 +104,38 @@ int main()
 	p_file.close();
 	return 0;
 }
+#endif
+
+#ifdef VISUALIZE_UNIT_TEST
+
+int main(int argc, char **argv)
+{
+	if( argc == 3 ) {
+		Parser *parse = new Parser();
+		
+		string map_name(argv[1]);
+		parse->read_beesoft_map(map_name.c_str());
+
+		// Check Map information
+		cout << "Map information: " << endl;
+		cout << "Resolution " << parse->_my_map->resolution << " SizeX " << parse->_my_map->size_x << " SizeY " << parse->_my_map->size_y << endl;
+		cout << "Min_Max X " << parse->_my_map->min_x << " " << parse->_my_map->max_x << endl;
+		cout << "Min_Max Y " << parse->_my_map->min_y << " " << parse->_my_map->max_y << endl;
+		cout << "Offset X " << parse->_my_map->offset_x << " Offset Y " << parse->_my_map->offset_y << endl;
+
+	  	string filename(argv[2]);
+		parse->read_log_data(filename.c_str());
+
+		pf filter(parse->_my_map, 1000, 0);
+		while(true)
+		{
+			filter.draw_particles();
+		}
+	} else {
+		cout << "ERROR: Enter dat file name" << endl;
+	}
+	
+	return 0;
+}
+
 #endif

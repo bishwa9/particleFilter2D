@@ -12,14 +12,35 @@
 #include "pf.h"
 
 /* CONSTRUCTOR */
-pf::pf(map_type *map, int max_particles):
+pf::pf(map_type *map, int max_particles, int pf_num):
 	_map( map ), 
 	_curSt( new vector< particle_type* >() ), 
 	_nxtSt( new vector< particle_type* >() ),
 	_maxP( max_particles ),
 	_bmm( new beamMeasurementModel() ),
 	_generator( new default_random_engine )
+#if UI == 1
+	,
+	_pfNum(pf_num),
+	_mapWindowName( "Particle Filter_" + to_string(_pfNum) ),
+	_mapMat( new Mat(_map->size_x, _map->size_y, CV_32F) ),
+	_clearMapMat( new Mat(_map->size_x, _map->size_y, CV_32F) )
+#endif
 {
+#if UI == 1
+	for (unsigned int i = 0; i < _mapMat->rows; i++)
+	{
+		for (unsigned int j = 0; j < _mapMat->cols; j++)
+		{
+			if (_map->cells[i][j] > 0.0)
+			{
+				_mapMat->at<float>(i, j) =  _map->cells[i][j]; 
+			}
+		} 
+	}
+	cvtColor(*_mapMat, *_mapMat, COLOR_GRAY2BGR);
+	_mapMat->copyTo(*_clearMapMat);
+#endif
 	init();
 }
 
@@ -41,24 +62,26 @@ float pf::RandomFloat(float min, float max)
 }
 
 // TESTER : ABHISHEK
-// TESTS : define 10 particles and check range
+// TESTED!
 void pf::init()
 {
 	for (int i = 0; i < _maxP; i++) 
 	{
-		particle_type *particle;
+		particle_type *particle = new particle_type;
 
 		particle->x = RandomFloat( _map->min_x, _map->max_x);
 		particle->y = RandomFloat( _map->min_y, _map->max_y);
 		particle->bearing = RandomFloat(0.0, 2 * M_PI);
 
-		int x_ = convToGrid_x(particle->x);
-		int y_ = convToGrid_y(particle->y);
+		int x_ = particle->x;
+		int y_ = particle->y;
 
 		while (_map->cells[x_][y_] == -1 || _map->cells[x_][y_] <= obst_thres) 
 		{
 			particle->x = RandomFloat( _map->min_x, _map->max_x);
 			particle->y = RandomFloat( _map->min_y, _map->max_y);
+			x_ = particle->x;
+			y_ = particle->y;
 		}
 
 		_curSt->push_back(particle);
@@ -115,15 +138,15 @@ float euclid(float x1, float y1, float x2, float y2)
 // TESTER : BISHWAMOY SINHA FUCKING ROY
 // TEST : BMM IS DONE, FOR A PARTICLE TEST EXPECTED READINGS
 
-vector<float> *pf::expectedReadings( particle_type particle ) const
+vector<float> *pf::expectedReadings( particle_type *particle ) const
 {
 //TODO
 	//unique_lock<mutex> lock_map(_mapMutex); //released when exiting this function
 
 	vector<float> *expected = new vector<float>(beam_fov / beam_resolution);
-	float particle_bearing = particle.bearing;
-	int x0 = convToGrid_x( particle.x );
-	int y0 = convToGrid_y( particle.y );
+	float particle_bearing = particle->bearing;
+	int x0 = convToGrid_x( particle->x );
+	int y0 = convToGrid_y( particle->y );
 	float range = 0.0;
 	_bmm->get_param(MAX_RANGE, &range);
 
@@ -173,7 +196,7 @@ vector<float> *pf::expectedReadings( particle_type particle ) const
 }
 
 //Helper function: uses sensor model and map to get weight of a particle
-float pf::getParticleWeight( particle_type particle, log_type *data ) const
+float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 {
 	vector<float> *exp_readings = expectedReadings( particle );
 	vector<float> *ws = new vector<float>(beam_fov / beam_resolution);
@@ -239,7 +262,7 @@ void pf::sensor_update( log_type *data )
 	for( particle_type *x_m : *_curSt )
 	{
 		//get P(Z|X,map) = weight of particle
-		float weight_x_m = getParticleWeight( *x_m, data );
+		float weight_x_m = getParticleWeight( x_m, data );
 
 		//store weight in vector
 		weights->push_back(weight_x_m);
@@ -254,23 +277,22 @@ void pf::sensor_update( log_type *data )
 
 // TESTER : ERIC
 // TEST : PARSE MAP AND LOG FILE, ACCESS ODOMETRY DATA ITERATIVELY, CHECK STATE UPDATES
-
-particle_type pf::motion_sample(particle_type u, float sigma) const
+particle_type *pf::motion_sample(particle_type *u, particle_type *sigma) const
 {
 	//sample x
-	normal_distribution<float> x_norm(u.x, sigma);
+	normal_distribution<float> x_norm(u->x, sigma->x);
 	float dx_sample = x_norm(*_generator);
 	//sample y
-	normal_distribution<float> y_norm(u.y, sigma);
+	normal_distribution<float> y_norm(u->y, sigma->y);
 	float dy_sample = y_norm(*_generator);
 	//sample bearing
-	normal_distribution<float> bearing_norm(u.bearing, sigma);
+	normal_distribution<float> bearing_norm(u->bearing, sigma->bearing);
 	float db_sample = bearing_norm(*_generator);
 
-	particle_type dP;
-	dP.x = dx_sample;
-	dP.y = dy_sample;
-	dP.bearing = db_sample;
+	particle_type *dP = new particle_type;
+	dP->x = dx_sample;
+	dP->y = dy_sample;
+	dP->bearing = db_sample;
 
 	return dP;
 }
@@ -283,10 +305,15 @@ void pf::motion_update( log_type *data )
 	float db = meatOfData[2];
 	float ts = meatOfData[3];
 
-	particle_type dP_u;
-	dP_u.x = dx;
-	dP_u.y = dy;
-	dP_u.bearing = db;
+	particle_type *dP_u = new particle_type;
+	dP_u->x = dx;
+	dP_u->y = dy;
+	dP_u->bearing = db;
+
+	particle_type *sigma = new particle_type;
+	sigma->x = 0.1;
+	sigma->y = 0.1;
+	sigma->bearing = 0.1;
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -299,22 +326,53 @@ void pf::motion_update( log_type *data )
 #endif*/
 	for (particle_type *particle : *_curSt)
 	{
-		particle_type dP = motion_sample(dP_u);
+		particle_type *dP = motion_sample(dP_u, sigma);
 
-		particle->x += dP.x;
-		particle->y += dP.y;
+		particle->x += dP->x;
+		particle->y += dP->y;
 
 		int x_ = convToGrid_x(particle->x);
 		int y_ = convToGrid_y(particle->y);
 
 		if( grid_data[x_][y_] > obst_thres )
 		{
-			particle->x -= dP.x;
-			particle->y -= dP.y;
+			particle->x -= dP->x;
+			particle->y -= dP->y;
 		}
 
-		particle->bearing += dP.bearing;
+		particle->bearing += dP->bearing;
 	    particle->bearing = fmod(particle->bearing, 2*M_PI);
 		if (particle->bearing < 0) particle->bearing += 2*M_PI;
 	}
 }
+
+#if UI == 1
+//TESTED
+	void pf::draw_map() const
+	{
+		imshow( _mapWindowName, *_mapMat );
+		waitKey(10);
+	}
+	
+	void pf::erase_shapes()
+	{
+		delete _mapMat;
+		_mapMat = new Mat(_map->size_x, _map->size_y, CV_32F);
+		_clearMapMat->copyTo(*_mapMat);
+	}
+//TESTED
+	void pf::draw_particles() const
+	{
+		for(particle_type *particle : *_curSt)
+		{
+			circle( *_mapMat, Point(particle->y, particle->x), 2, Scalar(0,0,255), -1, 8 );
+		}
+		imshow( _mapWindowName, *_mapMat );
+		waitKey(10);
+	}
+
+	void pf::draw_range(particle_type *particle, vector<float> *readings) const
+	{
+
+	}
+#endif

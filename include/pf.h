@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <mutex>
 #include <random>
+#include <string>
 
 #include "Types.h"
 #include "bmm.h"
@@ -23,6 +24,11 @@
 
 #if PARALLELIZE == 1
 #include <omp.h>
+#endif
+
+#if UI == 1
+#include <opencv2/opencv.hpp>
+using namespace cv;
 #endif
 
 using namespace std;
@@ -66,13 +72,13 @@ public:
 
 	float RandomFloat(float min, float max);
 
-	vector<float> *expectedReadings( particle_type particle ) const;
+	vector<float> *expectedReadings( particle_type *particle ) const;
 
-	float getParticleWeight( particle_type particle, log_type *data ) const;
+	float getParticleWeight( particle_type *particle, log_type *data ) const;
 
 	void resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws );
 
-	particle_type motion_sample(particle_type u, float sigma=0.1) const;
+	particle_type *motion_sample(particle_type *u, particle_type *sigma) const;
 
 	void init();
 //public:
@@ -82,9 +88,18 @@ public:
 	static const int res_y = 10;
 	static constexpr float obst_thres = 0.9;
 
-	pf(map_type *map, int max_particles);
+	pf(map_type *map, int max_particles, int pf_num);
 	~pf();
-
+#if UI == 1
+	int _pfNum;
+	string _mapWindowName;
+	Mat *_clearMapMat;
+	Mat *_mapMat;
+	void draw_map() const;
+	void erase_shapes();
+	void draw_particles() const;
+	void draw_range(particle_type *particle, vector<float> *readings) const;
+#endif
 	int convToGrid_x(float x) const;
 	int convToGrid_y(float y) const;
 
