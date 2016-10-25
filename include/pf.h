@@ -51,6 +51,9 @@ private:
 	pf();
 
 	//Helper functions
+
+	float RandomFloat(float min, float max);
+
 	vector<float> *expectedReadings( particle_type particle ) const;
 
 	float getParticleWeight( particle_type particle, log_type *data ) const;

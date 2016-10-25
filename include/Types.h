@@ -12,6 +12,7 @@
 #define TYPES_H
 
 #define RANGE_LEN 180
+#define PI 3.1415926
 
 typedef struct {
 	int resolution, size_x, size_y;

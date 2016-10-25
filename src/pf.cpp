@@ -32,10 +32,27 @@ pf::~pf()
 	delete _bmm;
 }
 
+float pf::RandomFloat(float min, float max)
+{
+	float r = (float)rand() / (float)RAND_MAX;
+	return min + r * (max - min);
+}
+
 /* INITIALIZE */
 void pf::init()
 {
-//TODO: look at map and create initial vector of particles
+	for (int i = 0; i < _maxP; i++) {
+		particle_type particle;
+		particle.x = RandomFloat((float) _map->min_x, (float) _map->max_x);
+		particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
+		particle.bearing = RandomFloat(0.0, (float) 2 * PI);
+		while (_map->cells[(int)particle.x][(int)particle.y] == -1 || 
+			_map->cells[(int)particle.x][(int)particle.y] <= 0.9) {
+			particle.x = RandomFloat((float) _map->min_x, (float) _map->max_x);
+			particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
+		}
+		_curSt->push_back(particle);
+	}
 }
 
 /* RESET THE FILTER */
@@ -61,6 +78,7 @@ int pf::convToGrid_x(float x) const
 {
 	return static_cast<int>( x/res_x );
 }
+
 int pf::convToGrid_y(float y) const
 {
 	return static_cast<int>( y/res_y );
@@ -171,7 +189,7 @@ float pf::getParticleWeight( particle_type particle, log_type *data ) const
 //Helper function: uses low variance sampling to resample based on particle weights
 void pf::resampleW( vector< particle_type > *resampledSt, vector<float> *Ws )
 {
-	float r = rand() / _curSt->size(); 
+	float r = RandomFloat(0.0, (float) 1/_curSt->size());
 	float c = Ws->at(0);
 	int idx = 0;
 	for (int i = 0; i < _curSt->size(); i++)
