@@ -284,24 +284,24 @@ void pf::motion_update( log_type *data )
 #if PARALLELIZE == 1
 #pragma omp parallel for
 #endif
-	for (particle_type *particle : *_curSt)
+	for (vector<particle_type *>::iterator particle = _curSt->begin(); particle != _curSt->end(); particle++)
 	{
 		particle_type dP = motion_sample(dP_u);
 
-		particle->x += dP.x;
-		particle->y += dP.y;
+		(*particle)->x += dP.x;
+		(*particle)->y += dP.y;
 
-		int x_ = convToGrid_x(particle->x);
-		int y_ = convToGrid_y(particle->y);
+		int x_ = convToGrid_x((*particle)->x);
+		int y_ = convToGrid_y((*particle)->y);
 
 		if( grid_data[x_][y_] > obst_thres )
 		{
-			particle->x -= dP.x;
-			particle->y -= dP.y;
+			(*particle)->x -= dP.x;
+			(*particle)->y -= dP.y;
 		}
 
-		particle->bearing += dP.bearing;
-	    particle->bearing = fmod(particle->bearing, 2*M_PI);
-		if (particle->bearing < 0) particle->bearing += 2*M_PI;
+		(*particle)->bearing += dP.bearing;
+	    (*particle)->bearing = fmod((*particle)->bearing, 2*M_PI);
+		if ((*particle)->bearing < 0) (*particle)->bearing += 2*M_PI;
 	}
 }
