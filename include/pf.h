@@ -15,12 +15,15 @@
 #include <vector>
 #include <stdlib.h>
 
-#ifdef PARALLELIZE
+#include "Types.h"
+#include "bmm.h"
+#include "settings.h"
+
+#if PARALLELIZE == 1
 #include <omp.h>
 #endif
 
-#include "Types.h"
-#include "bmm.h"
+
 
 using namespace std;
 

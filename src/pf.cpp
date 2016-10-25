@@ -84,7 +84,7 @@ vector<float> *pf::expectedReadings( particle_type particle ) const
 	float **grid_data = _map->cells;
 
 	//use ray casting to get all grid locations to check
-#ifdef PARALLELIZE
+#if PARALLELIZE == 1
 #pragma omp parallel for
 #endif
 	for(int beam = 0; beam < beam_fov; beam+=beam_resolution)
@@ -134,7 +134,7 @@ float pf::getParticleWeight( particle_type particle, log_type *data ) const
 	float *beamReadings = data->r;
 
 	// iterate through each beam
-#ifdef PARALLELIZE
+#if PARALLELIZE == 1
 #pragma omp parallel for
 #endif
 	for(int beam = 0; beam < beam_fov; beam+=beam_resolution)
