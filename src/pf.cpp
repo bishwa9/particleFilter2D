@@ -47,7 +47,7 @@ void pf::init()
 		particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
 		particle.bearing = RandomFloat(0.0, (float) 2 * PI);
 		while (_map->cells[(int)particle.x][(int)particle.y] == -1 || 
-			_map->cells[(int)particle.x][(int)particle.y] <= 0.9) {
+			_map->cells[(int)particle.x][(int)particle.y] <= obst_thres) {
 			particle.x = RandomFloat((float) _map->min_x, (float) _map->max_x);
 			particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
 		}

@@ -12,8 +12,8 @@
 
 #include "Parser.h"
 
-//#define MAP_UNIT_TEST
-#define BMM_UNIT_TEST
+#define MAP_UNIT_TEST
+//#define BMM_UNIT_TEST
 
 #ifdef MAP_UNIT_TEST
 	#include <opencv2/core/core.hpp>
