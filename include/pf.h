@@ -14,6 +14,8 @@
 
 #include <vector>
 #include <stdlib.h>
+#include <mutex>
+#include <random>
 
 #include "Types.h"
 #include "bmm.h"
@@ -36,16 +38,22 @@ class pf
 {
 private:
 	//map
+	mutex _mapMutex;
 	map_type *_map;
 	//vector of particles representing 
-	vector< particle_type > *_curSt;
+	mutex _curStMutex;
+	vector< particle_type* > *_curSt;
 	//vector of particles representing 
-	vector< particle_type > *_nxtSt;
+	mutex _nxtStMutex;
+	vector< particle_type* > *_nxtSt;
 	//maximum number of particles (upper limit if using adaptive)
 	int _maxP;
 
 	//range finder model
 	beamMeasurementModel *_bmm;
+
+	//motion model gaussian sampler
+	default_random_engine *_generator;
 
 	//don't call the default constructor
 	pf();
@@ -58,7 +66,9 @@ private:
 
 	float getParticleWeight( particle_type particle, log_type *data ) const;
 
-	void resampleW( vector< particle_type > *resampledSt, vector<float> *Ws );
+	void resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws );
+
+	particle_type motion_sample(particle_type u, float sigma=0.1) const;
 
 	void init();
 public:
@@ -66,7 +76,7 @@ public:
 	static const int beam_resolution = 1; 
 	static const int res_x = 10;
 	static const int res_y = 10;
-	static constexpr float obst_thres = 0.5;
+	static constexpr float obst_thres = 0.9;
 
 	pf(map_type *map, int max_particles);
 	~pf();
@@ -74,7 +84,7 @@ public:
 	int convToGrid_x(float x) const;
 	int convToGrid_y(float y) const;
 
-	const vector< particle_type > *access_st() const;
+	const vector< particle_type *> *access_st() const;
 	const map_type *access_map() const;
 
 	/* RESET PARTICLE FILTER */

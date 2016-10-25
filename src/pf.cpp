@@ -14,10 +14,11 @@
 /* CONSTRUCTOR */
 pf::pf(map_type *map, int max_particles):
 	_map( map ), 
-	_curSt( new vector< particle_type >() ), 
-	_nxtSt( new vector< particle_type >() ),
+	_curSt( new vector< particle_type* >() ), 
+	_nxtSt( new vector< particle_type* >() ),
 	_maxP( max_particles ),
-	_bmm( new beamMeasurementModel() )
+	_bmm( new beamMeasurementModel() ),
+	_generator( new default_random_engine )
 {
 	init();
 }
@@ -32,25 +33,32 @@ pf::~pf()
 	delete _bmm;
 }
 
+/* INITIALIZE */
 float pf::RandomFloat(float min, float max)
 {
 	float r = (float)rand() / (float)RAND_MAX;
 	return min + r * (max - min);
 }
 
-/* INITIALIZE */
 void pf::init()
 {
-	for (int i = 0; i < _maxP; i++) {
-		particle_type particle;
-		particle.x = RandomFloat((float) _map->min_x, (float) _map->max_x);
-		particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
-		particle.bearing = RandomFloat(0.0, (float) 2 * PI);
-		while (_map->cells[(int)particle.x][(int)particle.y] == -1 || 
-			_map->cells[(int)particle.x][(int)particle.y] <= obst_thres) {
-			particle.x = RandomFloat((float) _map->min_x, (float) _map->max_x);
-			particle.y = RandomFloat((float) _map->min_y, (float) _map->max_y);
+	for (int i = 0; i < _maxP; i++) 
+	{
+		particle_type *particle;
+
+		particle->x = RandomFloat( _map->min_x, _map->max_x);
+		particle->y = RandomFloat( _map->min_y, _map->max_y);
+		particle->bearing = RandomFloat(0.0, 2 * M_PI);
+
+		int x_ = convToGrid_x(particle->x);
+		int y_ = convToGrid_y(particle->y);
+
+		while (_map->cells[x_][y_] == -1 || _map->cells[x_][y_] <= obst_thres) 
+		{
+			particle->x = RandomFloat( _map->min_x, _map->max_x);
+			particle->y = RandomFloat( _map->min_y, _map->max_y);
 		}
+
 		_curSt->push_back(particle);
 	}
 }
@@ -58,6 +66,9 @@ void pf::init()
 /* RESET THE FILTER */
 void pf::reset()
 {
+	//unique_lock<mutex> lock_curSt(_curStMutex);
+	//unique_lock<mutex> lock_nxtSt(_nxtStMutex);
+
 	//clear nxt and cur states
 	_curSt->clear();
 	_nxtSt->clear();
@@ -65,7 +76,7 @@ void pf::reset()
 	init();
 }
 
-const vector< particle_type > *pf::access_st() const
+const vector< particle_type *> *pf::access_st() const
 {
 	return _curSt;
 }
@@ -101,6 +112,8 @@ float euclid(float x1, float y1, float x2, float y2)
 vector<float> *pf::expectedReadings( particle_type particle ) const
 {
 //TODO
+	//unique_lock<mutex> lock_map(_mapMutex); //released when exiting this function
+
 	vector<float> *expected = new vector<float>(beam_fov / beam_resolution);
 	float particle_bearing = particle.bearing;
 	int x0 = convToGrid_x( particle.x );
@@ -187,14 +200,14 @@ float pf::getParticleWeight( particle_type particle, log_type *data ) const
 }
 
 //Helper function: uses low variance sampling to resample based on particle weights
-void pf::resampleW( vector< particle_type > *resampledSt, vector<float> *Ws )
+void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 {
 	float r = RandomFloat(0.0, (float) 1/_curSt->size());
 	float c = Ws->at(0);
 	int idx = 0;
 	for (int i = 0; i < _curSt->size(); i++)
 	{
-		particle_type particle;
+		particle_type *particle;
 		float new_weight = r + static_cast<float>(i) / _curSt->size();
 		while (c < new_weight)
 		{
@@ -209,12 +222,15 @@ void pf::resampleW( vector< particle_type > *resampledSt, vector<float> *Ws )
 //Main function to update state using laser reading
 void pf::sensor_update( log_type *data )
 {
+	//unique_lock<mutex> lock_curSt(_curStMutex);
+	//unique_lock<mutex> lock_nxtSt(_nxtStMutex);
+
 	vector<float> *weights = new vector<float>();
 	//iterate through all particles (TODO: Look into parallelizing)
-	for( particle_type x_m : *_curSt )
+	for( particle_type *x_m : *_curSt )
 	{
 		//get P(Z|X,map) = weight of particle
-		float weight_x_m = getParticleWeight( x_m, data );
+		float weight_x_m = getParticleWeight( *x_m, data );
 
 		//store weight in vector
 		weights->push_back(weight_x_m);
@@ -226,7 +242,66 @@ void pf::sensor_update( log_type *data )
 }
 
 /* MOTION UPDATE */
+particle_type pf::motion_sample(particle_type u, float sigma) const
+{
+	//sample x
+	normal_distribution<float> x_norm(u.x, sigma);
+	float dx_sample = x_norm(*_generator);
+	//sample y
+	normal_distribution<float> y_norm(u.y, sigma);
+	float dy_sample = y_norm(*_generator);
+	//sample bearing
+	normal_distribution<float> bearing_norm(u.bearing, sigma);
+	float db_sample = bearing_norm(*_generator);
+
+	particle_type dP;
+	dP.x = dx_sample;
+	dP.y = dy_sample;
+	dP.bearing = db_sample;
+
+	return dP;
+}
+
 void pf::motion_update( log_type *data )
 {
+	float *meatOfData = data->r;
+	float dx = meatOfData[0];
+	float dy = meatOfData[1];
+	float db = meatOfData[2];
+	float ts = meatOfData[3];
+
+	particle_type dP_u;
+	dP_u.x = dx;
+	dP_u.y = dy;
+	dP_u.bearing = db;
+
 	//TODO: update the next state for now
+	//unique_lock<mutex> lock_curSt(_curStMutex);
+	//unique_lock<mutex> lock_map(_mapMutex);
+
+	float **grid_data = _map->cells;
+	
+#if PARALLELIZE == 1
+#pragma omp parallel for
+#endif
+	for (particle_type *particle : *_curSt)
+	{
+		particle_type dP = motion_sample(dP_u);
+
+		particle->x += dP.x;
+		particle->y += dP.y;
+
+		int x_ = convToGrid_x(particle->x);
+		int y_ = convToGrid_y(particle->y);
+
+		if( grid_data[x_][y_] > obst_thres )
+		{
+			particle->x -= dP.x;
+			particle->y -= dP.y;
+		}
+
+		particle->bearing += dP.bearing;
+	    particle->bearing = fmod(particle->bearing, 2*M_PI);
+		if (particle->bearing < 0) particle->bearing += 2*M_PI;
+	}
 }
