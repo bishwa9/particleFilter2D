@@ -269,7 +269,7 @@ float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 	{
 		int beam = static_cast<int>(beam_deg / beam_resolution);
 		
-		float reading = beamReadings[beam];
+		float reading = beamReadings[beam] / _map->resolution;
 
 		// for each beam get expected range reading
 		float expected_reading = exp_readings->at(beam);
@@ -277,14 +277,17 @@ float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 		// get weight from the actual reading for that beam
 		_bmm->set_param(P_HIT_U, expected_reading);
 		float p_reading = _bmm->getP(reading);
-		ws->at(beam) = p_reading; 
+		//printf("P(Z | X,M) = %f\n", p_reading);
+		ws->at(beam) = 100*p_reading; 
 	}
 
 	// calculate total weight
-	float tot = 0.0;
+	float tot = 1.0;
+	//float tot = 0.0;
 	for(float w : *ws)
 	{
-		tot += log(w); //TODO: sum of log
+		//tot += log(w); //TODO: sum of log
+		tot *= w;
 	}
 	return tot;
 }
@@ -339,7 +342,6 @@ void pf::sensor_update( log_type *data )
 	delete _curSt;
 	_curSt = new vector<particle_type*>(*_nxtSt);
 	_nxtSt->clear();
-	printf("Size: %lu\n", _curSt->size());
 }
 
 /* MOTION UPDATE */
@@ -369,15 +371,15 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 {
 	// detla x, y, bearing 
 	particle_type dP_u;
-	dP_u.x = data->x - prev_data->x;
-	dP_u.y = data->y - prev_data->y;
+	dP_u.x = ( data->x - prev_data->x ) / 10.0;
+	dP_u.y = ( data->y - prev_data->y ) / 10.0;
 	dP_u.bearing = data->theta - prev_data->theta;
 
 	// variance 
 	particle_type sigma; 
-	sigma.x = 0;
-	sigma.y = 0;
-	sigma.bearing = 0;
+	sigma.x = 1;
+	sigma.y = 1;
+	sigma.bearing = 0.1;
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -475,17 +477,15 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 	{
 		for(particle_type *particle : *_curSt)
 		{
-			//printf("%f %f | ", particle->y, particle->x);
 			circle( *_mapMat, Point(particle->y, particle->x), 2, Scalar(0,0,255), -1, 8 );
 		}
-		printf("\n");
 		imshow( _mapWindowName, *_mapMat );
 		waitKey(10);
 	}
 
 	void pf::draw_range(particle_type *particle, vector<float> *readings) const
 	{
-		circle( *_mapMat, Point(particle->y, particle->x), 20, Scalar(0,0,255), -1, 8 );
+		circle( *_mapMat, Point(particle->y, particle->x), 5, Scalar(0,0,255), -1, 8 );
 
 		//transformation matrices
 		Eigen::Matrix<float, 3, 3> _H_m_r(3,3);

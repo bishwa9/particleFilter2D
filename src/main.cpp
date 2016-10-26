@@ -12,13 +12,16 @@
 
 //#define MAP_UNIT_TEST
 //#define BMM_UNIT_TEST
-//#define VISUALIZE_UNIT_TEST
-#define MM_UNIT_TEST
+//#define MM_UNIT_TEST
+#define SENSOR_UNIT_TEST
+//#define MM_UNIT_TEST
 //#define MM_OR_SENSOR
 
-#ifdef VISUALIZE_UNIT_TEST
+#ifdef SENSOR_UNIT_TEST
 	#include "Parser.h"
 	#include "pf.h"
+	#include <thread>
+	#include <chrono>
 #endif
 
 #ifdef MAP_UNIT_TEST
@@ -126,7 +129,7 @@ int main()
 }
 #endif
 
-#ifdef VISUALIZE_UNIT_TEST
+#ifdef SENSOR_UNIT_TEST
 
 int main(int argc, char **argv)
 {
@@ -145,7 +148,17 @@ int main(int argc, char **argv)
 
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());
-		pf filter(parse->_my_map, 1000, 0);
+		pf filter(parse->_my_map, 10, 0);
+
+		/*for(int i = 0; i < filter._curSt->size(); i++)
+		{
+			particle_type *p = filter._curSt->at(i);
+			vector<float> *readings = filter.expectedReadings(p);
+
+			filter.draw_range(p, readings);
+			this_thread::sleep_for(chrono::milliseconds(700));
+			filter.erase_shapes();
+		}*/
 
 		for(int i = 0; i < parse->_logData->size(); i++)
 		{
@@ -188,7 +201,7 @@ int main(int argc, char **argv)
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());  //output of log 
 
-		pf pf(parse->_my_map, 1, 0); 
+		pf pf(parse->_my_map, 100, 0); 
 
 		int prev_ptr, curr_ptr;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
@@ -221,8 +234,7 @@ int main(int argc, char **argv)
 			delete pf._curSt;
 			pf._curSt = new vector<particle_type*>(*pf._nxtSt);
 			pf._nxtSt->clear();
-
-			// pf.erase_shapes();
+			pf.erase_shapes();
 			pf.draw_particles();
 		}
 
