@@ -282,12 +282,12 @@ float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 	}
 
 	// calculate total weight
-	float tot = 1.0;
-	//float tot = 0.0;
+	//float tot = 1.0;
+	float tot = 0.0;
 	for(float w : *ws)
 	{
-		//tot += log(w); //TODO: sum of log
-		tot *= w;
+		tot += log(w); //TODO: sum of log
+		//tot *= w;
 	}
 	return tot;
 }
@@ -429,8 +429,8 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 
 		// apply update
 		dP = dP_guas;
-		nxtParticle->x = particle->x + dP.x/10;
-		nxtParticle->y = particle->y + dP.y/10;
+		nxtParticle->x = particle->x + dP.x / _map->resolution;
+		nxtParticle->y = particle->y + dP.y / _map->resolution;
 		nxtParticle->bearing = particle->bearing + dP.bearing;
 
 		// check max, min bounds

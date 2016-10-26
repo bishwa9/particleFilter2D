@@ -13,9 +13,9 @@
 //#define MAP_UNIT_TEST
 //#define BMM_UNIT_TEST
 //#define MM_UNIT_TEST
-#define SENSOR_UNIT_TEST
+//#define SENSOR_UNIT_TEST
 //#define MM_UNIT_TEST
-//#define MM_OR_SENSOR
+#define PF_UNIT_TEST
 
 #ifdef SENSOR_UNIT_TEST
 	#include "Parser.h"
@@ -43,17 +43,17 @@
 	#include "pf.h"
 
 	using namespace std;
-	using namespace Eigen;
 #endif
 
-#ifdef MM_OR_SENSOR
+#ifdef PF_UNIT_TEST
 	#include "Parser.h"
 	#include "pf.h"
 	#include <fstream>
 	#include "bmm.h"
+	#include <thread>
+	#include <chrono>
 
 	using namespace std;
-	using namespace Eigen;
 #endif
 
 // Unit test
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());
-		pf filter(parse->_my_map, 10, 0);
+		pf filter(parse->_my_map, 1000, 0);
 
 		/*for(int i = 0; i < filter._curSt->size(); i++)
 		{
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
 		int prev_ptr, curr_ptr;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
-			/*while (parse->_logData[0][i]->type == L_DATA) {
+			while (parse->_logData[0][i]->type == L_DATA) {
 				i++;
 				if (i == parse->_logData->size())
 					break;
@@ -223,9 +223,9 @@ int main(int argc, char **argv)
 					break;
 			}
 			if (curr_ptr >= parse->_logData->size())
-				break;*/
-			prev_ptr = i;
-			curr_ptr = i+ 1;
+				break;
+			//prev_ptr = i;
+			//curr_ptr = i+ 1;
 
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
 			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
@@ -247,10 +247,64 @@ int main(int argc, char **argv)
 
 #endif
 
-#ifdef MM_OR_SENSOR
-/*int main(int argc, char **argv)
+#ifdef PF_UNIT_TEST
+int main(int argc, char **argv)
 {
+	if( argc == 3 ) {
+		Parser *parse = new Parser();
+		
+		string map_name(argv[1]);
+		parse->read_beesoft_map(map_name.c_str());
 
-}*/
+		// Check Map information
+		cout << "Map information: " << endl;
+		cout << "Resolution " << parse->_my_map->resolution << " SizeX " << parse->_my_map->size_x << " SizeY ";
+		cout << parse->_my_map->size_y << endl;
+		cout << "Min_Max X " << parse->_my_map->min_x << " " << parse->_my_map->max_x << endl;
+		cout << "Min_Max Y " << parse->_my_map->min_y << " " << parse->_my_map->max_y << endl;
+		cout << "Offset X " << parse->_my_map->offset_x << " Offset Y " << parse->_my_map->offset_y << endl;
+	  	
+	  	string filename(argv[2]);
+		parse->read_log_data(filename.c_str());  //output of log 
+
+		pf pf(parse->_my_map, 100, 0); 
+
+		int prev_ptr, curr_ptr;
+		for (int i = 0; i < parse->_logData->size() - 1; i++) {
+
+			prev_ptr = i;
+			curr_ptr = i + 1;
+
+			// motion model
+			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
+
+			// print pointers, curSt, nxtSt
+			printf("\n%d %d\n", prev_ptr, curr_ptr);
+			printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
+			printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
+			
+			// sensor model
+			if (parse->_logData->at(curr_ptr)->type == L_DATA)
+			{
+				delete pf._curSt;
+				pf._curSt = new vector<particle_type*>(*pf._nxtSt);
+				pf._nxtSt->clear();
+
+				pf.sensor_update(parse->_logData->at(curr_ptr));
+			}
+			
+			delete pf._curSt;
+			pf._curSt = new vector<particle_type*>(*pf._nxtSt);
+			pf._nxtSt->clear();
+			pf.erase_shapes();
+			pf.draw_particles();
+		}
+
+	} else {
+		cout << "ERROR: Enter dat file name" << endl;
+	}
+	
+	return 0;
+}
 
 #endif 
