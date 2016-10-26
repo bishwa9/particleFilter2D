@@ -18,6 +18,8 @@
 #include <random>
 #include <string>
 
+#include <Eigen/Dense>
+
 #include "Types.h"
 #include "bmm.h"
 #include "settings.h"
@@ -69,7 +71,6 @@ public:
 	pf();
 
 	//Helper functions
-
 	float RandomFloat(float min, float max);
 
 	vector<float> *expectedReadings( particle_type *particle ) const;
@@ -78,7 +79,7 @@ public:
 
 	void resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws );
 
-	particle_type *motion_sample(particle_type *u, particle_type *sigma) const;
+	particle_type motion_sample(particle_type u, particle_type sigma) const;
 
 	void init();
 //public:
@@ -113,7 +114,7 @@ public:
 	void sensor_update( log_type *data );
 
 	/* MOTION UPDATE */
-	void motion_update( log_type *data );
+	void motion_update( log_type *data, log_type *prev_data);
 
 }; //end class pf
 
