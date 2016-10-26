@@ -375,9 +375,9 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 
 	// variance 
 	particle_type sigma; 
-	sigma.x = 10;
-	sigma.y = 10;
-	sigma.bearing = 0.1;
+	sigma.x = 0;
+	sigma.y = 0;
+	sigma.bearing = 0;
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -397,7 +397,7 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 
 
 		// transformation matrix
-		Eigen::Matrix<float, 3, 3> _H_m_r(3,3); 
+		/*Eigen::Matrix<float, 3, 3> _H_m_r(3,3); 
 		Eigen::Matrix<float, 3, 3> _H_r_b(3,3); 
 		Eigen::Matrix<float, 3, 3> _H_b_p(3,3);
 		Eigen::Matrix<float, 3, 3> _H_m_p(3,3);
@@ -423,11 +423,12 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 		// dx, dy, dtheta
 		dP.x = _H_m_p(0,2) - particle->x;
 		dP.y = _H_m_p(1,2) - particle->y;
-		dP.bearing = dP_guas.bearing;
+		dP.bearing = dP_guas.bearing;*/
 
 		// apply update
-		nxtParticle->x = particle->x + dP.x;
-		nxtParticle->y = particle->y + dP.y;
+		dP = dP_guas;
+		nxtParticle->x = particle->x + dP.x/10;
+		nxtParticle->y = particle->y + dP.y/10;
 		nxtParticle->bearing = particle->bearing + dP.bearing;
 
 		// check max, min bounds

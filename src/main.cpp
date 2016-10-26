@@ -12,8 +12,8 @@
 
 //#define MAP_UNIT_TEST
 //#define BMM_UNIT_TEST
-#define VISUALIZE_UNIT_TEST
-//#define MM_UNIT_TEST
+//#define VISUALIZE_UNIT_TEST
+#define MM_UNIT_TEST
 //#define MM_OR_SENSOR
 
 #ifdef VISUALIZE_UNIT_TEST
@@ -188,11 +188,11 @@ int main(int argc, char **argv)
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());  //output of log 
 
-		pf pf(parse->_my_map, 100, 0); 
+		pf pf(parse->_my_map, 1, 0); 
 
 		int prev_ptr, curr_ptr;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
-			while (parse->_logData[0][i]->type == L_DATA) {
+			/*while (parse->_logData[0][i]->type == L_DATA) {
 				i++;
 				if (i == parse->_logData->size())
 					break;
@@ -210,7 +210,9 @@ int main(int argc, char **argv)
 					break;
 			}
 			if (curr_ptr >= parse->_logData->size())
-				break;
+				break;*/
+			prev_ptr = i;
+			curr_ptr = i+ 1;
 
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
 			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
@@ -220,7 +222,7 @@ int main(int argc, char **argv)
 			pf._curSt = new vector<particle_type*>(*pf._nxtSt);
 			pf._nxtSt->clear();
 
-			pf.erase_shapes();
+			// pf.erase_shapes();
 			pf.draw_particles();
 		}
 
