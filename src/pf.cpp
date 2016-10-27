@@ -212,6 +212,12 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 				break;
 			}
 
+			if( grid_data[pt.x][pt.y] < 0 )
+			{
+				expected_range = max_range;
+				break;
+			}
+
 			if( grid_data[pt.x][pt.y] <= 0.7 )
 			{
 				expected_range = euclid(x0_m, y0_m, pt.x, pt.y);
@@ -284,7 +290,7 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 		float p_reading = _bmm->getP(reading);
 
 		ws->at(beam) = log(p_reading); 
-		//printf("P(Z | X,M) = %f %f\n", abs(expected_reading - reading), ws->at(beam));
+		//printf("P(Z | X,M) = %f %f %f\n", expected_reading, reading, ws->at(beam));
 	}
 
 	// calculate total weight
@@ -293,11 +299,12 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 	for(float w : *ws)
 	{
 		tot += w; //TODO: sum of log
+		printf("%f %f\n", tot, w);
 		//tot *= w;
 	}
-	tot = tot / ws->size();
-	printf("%f %f\n", tot, exp(tot));
-	return exp(tot);
+	//tot = tot / ws->size();
+	
+	return (tot);
 }
 
 // TESTER : ABHISHEK
@@ -368,9 +375,9 @@ void pf::sensor_update( log_type *data )
 	for(int i = 0; i < weights->size(); i++)
 	{
 		weights->at(i) = weights->at(i) / total_w;
-		//printf("W: %f\n", weights->at(i));
+		printf("W: %f\n", weights->at(i));
 	}
-	//printf("\n");
+	printf("\n");
 	//using low covariance sampling
 	resampleW( _nxtSt, weights );
 	delete _curSt;
@@ -436,17 +443,15 @@ void pf::motion_update( log_type *data )
 	_prevOdom = data;
 
 	// variance 
-	float sigma = 0.005;
-	float alpha = 0.005;	
+	float sigma = 0.05;
+	float alpha = 0.05;	
 
 	// detla x, y, bearing 
 	float d_rot1 = atan2(data->y - prev_data->y,data->x - prev_data->x) - prev_data->theta;
 	float d_trans = sqrt((prev_data->x - data->x)*(prev_data->x - data->x) + (prev_data->y - data->y)*(prev_data->y - data->y));
 	float d_rot2 = data->theta - prev_data->theta - d_rot1;
 
-	float d_rot1_hat = d_rot1 - data_sample(0,alpha * d_rot1 + alpha * d_trans);
-	float d_trans_hat = d_trans - data_sample(0,alpha * d_trans + alpha * (d_rot1 + d_rot2));
-	float d_rot2_hat = d_rot2 - data_sample(0,alpha * d_rot2 + alpha * d_trans);
+	
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -458,6 +463,11 @@ void pf::motion_update( log_type *data )
 
 	for (particle_type *particle : *_curSt)
 	{
+
+		float d_rot1_hat = d_rot1 - data_sample(0,alpha * d_rot1 + alpha * d_trans);
+		float d_trans_hat = d_trans - data_sample(0,alpha * d_trans + alpha * (d_rot1 + d_rot2));
+		float d_rot2_hat = d_rot2 - data_sample(0,alpha * d_rot2 + alpha * d_trans);
+
 		particle_type *nxtParticle = new particle_type;
 
 		// apply update

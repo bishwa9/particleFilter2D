@@ -7,7 +7,7 @@ enum param {MAX_RANGE=0, MIN_RANGE, P_SHORT_LAMBDA, P_MAX_START, P_HIT_U, P_HIT_
 
 class beamMeasurementModel
 {
-private:
+public:
 	int _maxRange;
 	int _minRange;
 	
@@ -27,7 +27,7 @@ private:
 	float eval_pMax(float) const;
 	float eval_pShort(float) const;
 	float eval_pHit(float) const;
-public:
+//public:
 	beamMeasurementModel();
 	bool set_param(param, float);
 	bool get_param(param, float*) const;

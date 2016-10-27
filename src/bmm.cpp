@@ -4,8 +4,8 @@ beamMeasurementModel::beamMeasurementModel():
 _maxRange(8000),
 _minRange(0),
 _pShortLambda(0.005),
-_startMax(8000-1),
-_uHit(4000),
+_startMax(8000-100),
+_uHit(2),
 _sigmaHit(600)
 {}
 
@@ -173,10 +173,12 @@ float beamMeasurementModel::getP(float x_t) const
 	float pRand = eval_pRand(x_t);
 
 	// weighted average
-	float hitW = 750;
-	float shortW = 1;
-	float maxW = 0;
-	float randW = 5;
+	float hitW = 3000;
+	float shortW = 0;
+	float maxW = 50;
+	float randW = 100;
+
+//	printf("%f\n", _uHit);
 
 	float p = hitW * pHit + shortW * pShort + maxW * pMax + randW * pRand;
 

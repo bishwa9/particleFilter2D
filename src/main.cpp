@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 #ifdef BMM_UNIT_TEST
 int main()
 {
-	ofstream p_file("dist.txt");
+	ofstream p_file("dist1.txt");
 	beamMeasurementModel bmm;
 	int resolution = 1;
 	float maxRange = 0.0;
@@ -118,7 +118,9 @@ int main()
 		printf("ERROR!\n");
 		return 0;
 	}
-	
+
+	bmm.set_param(P_HIT_U, 3500);
+
 	for(float x_t = 0; x_t < maxRange; x_t+=resolution)
 	{
 		float prob = bmm.getP( x_t );
@@ -226,6 +228,10 @@ int main(int argc, char **argv)
 		pf pf(parse->_my_map, 1, 0); 
 
 		int prev_ptr, curr_ptr;
+
+		pf._curSt->at(0)->x = 4130;
+			pf._curSt->at(0)->y = 4010;
+			pf._curSt->at(0)->bearing = -1.7;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
 			while (parse->_logData[0][i]->type == L_DATA) {
 				i++;
@@ -250,7 +256,7 @@ int main(int argc, char **argv)
 			//curr_ptr = i+ 1;
 
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
-			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
+			pf.motion_update(parse->_logData->at(curr_ptr));
 			printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
 			//printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
 			//delete pf._curSt;
