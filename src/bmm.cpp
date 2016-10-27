@@ -3,10 +3,10 @@
 beamMeasurementModel::beamMeasurementModel():
 _maxRange(8000),
 _minRange(0),
-_pShortLambda(0.0009),
-_startMax(8000-100),
+_pShortLambda(0.005),
+_startMax(8000-1),
 _uHit(4000),
-_sigmaHit(500)
+_sigmaHit(600)
 {}
 
 bool beamMeasurementModel::get_param(param param_type, float *val) const
@@ -122,7 +122,7 @@ float beamMeasurementModel::eval_pShort(float x_t) const
 	{
 		float exp_term = -1.0 * _pShortLambda * x_t;
 		//un normalized value
-		float unN_val = _pShortLambda * exp(exp_term);
+		float unN_val = 0.5 * exp(exp_term);
 		//normalize
 		exp_term = -1.0 * _pShortLambda * _uHit;
 		float eta = 1 ;/// ( 1 - exp(exp_term) );
@@ -173,10 +173,10 @@ float beamMeasurementModel::getP(float x_t) const
 	float pRand = eval_pRand(x_t);
 
 	// weighted average
-	float hitW = 100;
-	float shortW = 50;
-	float maxW = 10;
-	float randW = 10;
+	float hitW = 750;
+	float shortW = 1;
+	float maxW = 0;
+	float randW = 1;
 
 	float p = hitW * pHit + shortW * pShort + maxW * pMax + randW * pRand;
 

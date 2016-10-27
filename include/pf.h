@@ -61,6 +61,8 @@ public:
 	//maximum number of particles (upper limit if using adaptive)
 	int _maxP;
 
+	log_type *_prevOdom;
+
 	//range finder model
 	beamMeasurementModel *_bmm;
 
@@ -80,6 +82,8 @@ public:
 	void resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws );
 
 	particle_type motion_sample(particle_type u, particle_type sigma) const;
+
+	float data_sample(float u, float sigma) const;
 
 	void init();
 //public:
@@ -114,7 +118,7 @@ public:
 	void sensor_update( log_type *data );
 
 	/* MOTION UPDATE */
-	void motion_update( log_type *data, log_type *prev_data);
+	void motion_update( log_type *data );
 
 }; //end class pf
 

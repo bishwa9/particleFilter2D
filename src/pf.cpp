@@ -18,7 +18,8 @@ pf::pf(map_type *map, int max_particles, int pf_num):
 	_nxtSt( new vector< particle_type* >() ),
 	_maxP( max_particles ),
 	_bmm( new beamMeasurementModel() ),
-	_generator( new default_random_engine )
+	_generator( new default_random_engine ),
+	_prevOdom(NULL)
 #if UI == 1
 	,
 	_pfNum(pf_num),
@@ -69,23 +70,20 @@ void pf::init()
 	{
 		particle_type *particle = new particle_type;
 
-		particle->x = RandomFloat( _map->min_x, _map->max_x);
-		particle->y = RandomFloat( _map->min_y, _map->max_y);
+		particle->x = RandomFloat( _map->min_x * _map->resolution, _map->max_x * _map->resolution);
+		particle->y = RandomFloat( _map->min_y * _map->resolution, _map->max_y * _map->resolution);
 		particle->bearing = RandomFloat(0.0, 2 * M_PI) - M_PI;
 
-		int x_ = particle->x;
-		int y_ = particle->y;
+		int x_ = particle->x / _map->resolution;
+		int y_ = particle->y / _map->resolution;
 
 		while (_map->cells[x_][y_] == -1 || _map->cells[x_][y_] <= obst_thres) 
 		{
-			particle->x = RandomFloat( _map->min_x, _map->max_x);
-			particle->y = RandomFloat( _map->min_y, _map->max_y);
-			x_ = particle->x;
-			y_ = particle->y;
+			particle->x = RandomFloat( _map->min_x * _map->resolution, _map->max_x * _map->resolution);
+			particle->y = RandomFloat( _map->min_y * _map->resolution, _map->max_y * _map->resolution);
+			x_ = particle->x / _map->resolution;
+			y_ = particle->y / _map->resolution;
 		}
-
-		particle->x = x_;
-		particle->y = y_;
 
 		_curSt->push_back(particle);
 	}
@@ -115,12 +113,12 @@ const map_type *pf::access_map() const
 
 int pf::convToGrid_x(float x) const
 {
-	return static_cast<int>( x );
+	return static_cast<int>( x / _map->resolution );
 }
 
 int pf::convToGrid_y(float y) const
 {
-	return static_cast<int>( y );
+	return static_cast<int>( y / _map->resolution );
 }
 
 /* SENSOR UPDATE */
@@ -150,7 +148,7 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 	float particle_x = particle->x;
 	float particle_y = particle->y;
 
-	float max_range = 0.0;
+	float max_range = 0.0; //cm
 	_bmm->get_param(MAX_RANGE, &max_range);
 
 	float **grid_data = _map->cells;
@@ -177,7 +175,7 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 		float x1_s = max_range *  sin(beam_rad);
 		float y1_s = max_range * -cos(beam_rad);
 
-		_H_s_p << 1, 0, x1_s + 2.50,
+		_H_s_p << 1, 0, x1_s + 25,
 				  0, 1, y1_s,
 				  0, 0, 1;
 
@@ -195,10 +193,10 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 
 		LineIterator lit(*_clearMapMat, Point(x0_m, y0_m), Point(x1_m, y1_m));
 
-
 		for(int i = 0; i < lit.count; ++i, ++lit)
 		{
 			Point pt = lit.pos();
+
 			if(pt.x == x1_m && pt.y == y1_m)
 			{
 				expected_range = max_range;
@@ -247,7 +245,7 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 			y_iter += (y_iter == y1_m) ? 0 : yInc_m;
 		}*/
 		int beam = static_cast<int>( beam_deg / beam_resolution );
-		expected->at(beam) = _map->resolution*expected_range; //cm
+		expected->at(beam) = _map->resolution * expected_range; //cm
 	}
 
 	//calculate the expected readings
@@ -257,11 +255,16 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 //Helper function: uses sensor model and map to get weight of a particle
 float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 {
+	if( _map->cells[static_cast<int>(particle->x/_map->resolution)][static_cast<int>(particle->y/_map->resolution)] == -1 )
+		return 0.0;
+
 	vector<float> *exp_readings = expectedReadings( particle ); //cm
 	vector<float> *ws = new vector<float>( static_cast<int>(beam_fov / beam_resolution) );
 	float *beamReadings = data->r;
+	//vector<float> *actual_readings = new vector<float>(*beamReadings, 180);
 	//erase_shapes();
 	//draw_range(particle, exp_readings);
+	//draw_range(particle, actual_readings);
 
 	// iterate through each beam
 #if PARALLELIZE == 1
@@ -279,8 +282,9 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 		// get weight from the actual reading for that beam
 		_bmm->set_param(P_HIT_U, expected_reading);
 		float p_reading = _bmm->getP(reading);
-		//printf("P(Z | X,M) = %f\n", p_reading);
-		ws->at(beam) = 100*p_reading; 
+
+		//printf("P(Z | X,M) = %f %f\n", abs(expected_reading - reading), p_reading);
+		ws->at(beam) = p_reading; 
 	}
 
 	// calculate total weight
@@ -313,6 +317,7 @@ void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 		}
 		particle_type *particle = (*_curSt)[idx];
 		resampledSt->push_back(particle);
+		//printf("idx: %d ", idx);
 	}
 	//printf("\n");
 }
@@ -325,7 +330,7 @@ void pf::sensor_update( log_type *data )
 	vector<float> *weights = new vector<float>();
 	//iterate through all particles (TODO: Look into parallelizing)
 	float min_w = 0.0;
-	float max_w = 0.0;
+	float max_w = 0.0; int bestP = 0; int counter = 0;
 	bool init = false;
 	for( particle_type *x_m : *_curSt )
 	{
@@ -340,37 +345,49 @@ void pf::sensor_update( log_type *data )
 			init = true;
 			max_w = weight_x_m;
 			min_w = weight_x_m;
+			bestP = counter;
 		}
 		else
 		{
 			max_w = (weight_x_m > max_w) ? weight_x_m : max_w;
 			min_w = (weight_x_m < min_w) ? weight_x_m : min_w; 
+			bestP = counter;
 		}
+		counter ++;
 	}
 	//scale 0 - 1
 	float total_w = 0.0;
 	for(int i = 0; i < weights->size(); i++)
 	{
-		weights->at(i) = (weights->at(i) - min_w) / (max_w - min_w);
+		weights->at(i) = abs(weights->at(i) - min_w) / abs(max_w - min_w);
 		total_w += weights->at(i);
 	}
 	//normal sum = 1
 	for(int i = 0; i < weights->size(); i++)
 	{
 		weights->at(i) = weights->at(i) / total_w;
+		//printf("W: %f\n", weights->at(i));
 	}
-
+	//printf("\n");
 	//using low covariance sampling
 	resampleW( _nxtSt, weights );
 	delete _curSt;
 	_curSt = new vector<particle_type*>(*_nxtSt);
 	_nxtSt->clear();
 
-	for( particle_type *x_m : *_curSt )
+	vector<float> *actual_readings = new vector<float>();
+
+	for(int i = 0; i < 180; i++)
+		actual_readings->push_back(data->r[i]);
+	
+	//erase_shapes();
+	draw_range(_curSt->at(bestP), actual_readings);
+
+	/*for( particle_type *x_m : *_curSt )
 	{
 		printf("Cur St: %f %f\n", x_m->x, x_m->y);
 	}
-	printf("\n");
+	printf("\n");*/
 }
 
 /* MOTION UPDATE */
@@ -396,19 +413,38 @@ particle_type pf::motion_sample(particle_type u, particle_type sigma) const
 	return dP;
 }
 
-void pf::motion_update( log_type *data, log_type *prev_data)
+float pf::data_sample(float u, float sigma) const
 {
-	// detla x, y, bearing 
-	particle_type dP_u;
-	dP_u.x = ( data->x - prev_data->x ) / 10.0;
-	dP_u.y = ( data->y - prev_data->y ) / 10.0;
-	dP_u.bearing = data->theta - prev_data->theta;
+	//sample var
+	normal_distribution<float> x_norm(u, sigma);
+	float dP = x_norm(*_generator);
+
+	return dP;
+}
+
+void pf::motion_update( log_type *data )
+{
+	if( _prevOdom == NULL )
+	{
+		_prevOdom = data;
+		return;
+	}
+
+	log_type *prev_data = _prevOdom;
+	_prevOdom = data;
 
 	// variance 
-	particle_type sigma; 
-	sigma.x = 1;
-	sigma.y = 1;
-	sigma.bearing = 0.1;
+	float sigma = 0.005;
+	float alpha = 0.005;	
+
+	// detla x, y, bearing 
+	float d_rot1 = atan2(data->y - prev_data->y,data->x - prev_data->x) - prev_data->theta;
+	float d_trans = sqrt((prev_data->x - data->x)*(prev_data->x - data->x) + (prev_data->y - data->y)*(prev_data->y - data->y));
+	float d_rot2 = data->theta - prev_data->theta - d_rot1;
+
+	float d_rot1_hat = d_rot1 - data_sample(0,alpha * d_rot1 + alpha * d_trans);
+	float d_trans_hat = d_trans - data_sample(0,alpha * d_trans + alpha * (d_rot1 + d_rot2));
+	float d_rot2_hat = d_rot2 - data_sample(0,alpha * d_rot2 + alpha * d_trans);
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -422,61 +458,10 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 	{
 		particle_type *nxtParticle = new particle_type;
 
-		// sample from guassian
-		particle_type dP_guas = motion_sample(dP_u, sigma);
-		particle_type dP; 
-
-
-		// transformation matrix
-		/*Eigen::Matrix<float, 3, 3> _H_m_r(3,3); 
-		Eigen::Matrix<float, 3, 3> _H_r_b(3,3); 
-		Eigen::Matrix<float, 3, 3> _H_b_p(3,3);
-		Eigen::Matrix<float, 3, 3> _H_m_p(3,3);
-
-		// map to robot
-		_H_m_r << 1, 0, particle->x, 
-				  0, 1, particle->y, 
-				  0, 0, 1;
-
-		// robot to bearing 
-		_H_r_b << cos(particle->bearing), -sin(particle->bearing), 0, 
-				  sin(particle->bearing),  cos(particle->bearing), 0, 
-				  0, 0, 1;
-
-		// bearing to new dx, dy
-		_H_b_p << 1, 0, dP_guas.x, 
-				  0, 1, dP_guas.y, 
-				  0, 0, 1;
-
-		// map to new dx, dy
-		_H_m_p = _H_m_r * _H_r_b * _H_b_p;
-
-		// dx, dy, dtheta
-		dP.x = _H_m_p(0,2) - particle->x;
-		dP.y = _H_m_p(1,2) - particle->y;
-		dP.bearing = dP_guas.bearing;*/
-
 		// apply update
-		dP = dP_guas;
-		nxtParticle->x = particle->x + dP.x / _map->resolution;
-		nxtParticle->y = particle->y + dP.y / _map->resolution;
-		nxtParticle->bearing = particle->bearing + dP.bearing;
-
-		// check max, min bounds
-		if (nxtParticle->x < 0 ) 
-			nxtParticle->x = 0;
-		else if (nxtParticle->x > _map->max_x)
-			nxtParticle->x = _map->max_x;
-
-		if (nxtParticle->y < 0) 
-			nxtParticle->y = 0;
-		else if (nxtParticle->y > _map->max_y)
-			nxtParticle->y = _map->max_y;
-
-		if (nxtParticle->bearing < -M_PI)
-			nxtParticle->bearing = M_PI + fmod(nxtParticle->bearing, M_PI);
-		else if (nxtParticle->bearing > M_PI)
-			nxtParticle->bearing = fmod(nxtParticle->bearing, M_PI) - M_PI;
+		nxtParticle->x = particle->x + d_trans_hat * cos(particle->bearing + d_rot1_hat);
+		nxtParticle->y = particle->y + d_trans_hat * sin(particle->bearing + d_rot1_hat);
+		nxtParticle->bearing = particle->bearing + d_rot1_hat + d_rot2_hat;
 
 		// push state
 		_nxtSt->push_back(nxtParticle);
@@ -510,7 +495,7 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 	{
 		for(particle_type *particle : *_curSt)
 		{
-			circle( *_mapMat, Point(particle->y, particle->x), 2, Scalar(0,0,255), -1, 8 );
+			circle( *_mapMat, Point(particle->y / _map->resolution, particle->x / _map->resolution), 2, Scalar(0,0,255), -1, 8 );
 		}
 		imshow( _mapWindowName, *_mapMat );
 		waitKey(10);
@@ -518,7 +503,7 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 
 	void pf::draw_range(particle_type *particle, vector<float> *readings) const
 	{
-		circle( *_mapMat, Point(particle->y, particle->x), 5, Scalar(0,0,255), -1, 8 );
+		circle( *_mapMat, Point(particle->y / _map->resolution, particle->x / _map->resolution), 5, Scalar(0,0,255), -1, 8 );
 
 		//transformation matrices
 		Eigen::Matrix<float, 3, 3> _H_m_r(3,3);
@@ -538,10 +523,10 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 			float beam_deg = beam * beam_resolution;
 			float beam_rad = beam_deg * M_PI / 180.0;
 
-			float x1_s = ( readings->at(beam) / _map->resolution ) *  sin(beam_rad);
-			float y1_s = ( readings->at(beam) / _map->resolution ) * -cos(beam_rad);
+			float x1_s = ( readings->at(beam) ) *  sin(beam_rad);
+			float y1_s = ( readings->at(beam) ) * -cos(beam_rad);
 
-			_H_s_p << 1, 0, x1_s + 2.50,
+			_H_s_p << 1, 0, x1_s + 25,
 					  0, 1, y1_s,
 					  0, 0, 1;
 
@@ -552,7 +537,7 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 			int y1_m = convToGrid_y( _H_s_m_1(1, 2) );
 
 			line(*_mapMat, 
-				Point(particle->y, particle->x), 
+				Point(particle->y / _map->resolution, particle->x / _map->resolution), 
 				Point(y1_m, x1_m),
 				Scalar(0,255,0));
 		}

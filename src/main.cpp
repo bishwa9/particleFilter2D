@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 		parse->read_log_data(filename.c_str());
 		pf filter(parse->_my_map, 1000, 0);
 
-		/*for(int i = 0; i < filter._curSt->size(); i++)
+		for(int i = 0; i < filter._curSt->size(); i++)
 		{
 			particle_type *p = filter._curSt->at(i);
 			vector<float> *readings = filter.expectedReadings(p);
@@ -158,9 +158,9 @@ int main(int argc, char **argv)
 			filter.draw_range(p, readings);
 			this_thread::sleep_for(chrono::milliseconds(700));
 			filter.erase_shapes();
-		}*/	
+		}
 
-		log_type *prev = NULL;
+		/*log_type *prev = NULL;
 
 		for(int i = 0; i < parse->_logData->size(); i++)
 		{
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 				//filter.draw_particles();
 				
 			}	
-		}
+		}*/
 	} else {
 		cout << "ERROR: Enter dat file name" << endl;
 	}
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());  //output of log 
 
-		pf pf(parse->_my_map, 100, 0); 
+		pf pf(parse->_my_map, 1, 0); 
 
 		int prev_ptr, curr_ptr;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
@@ -252,11 +252,11 @@ int main(int argc, char **argv)
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
 			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
 			printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
-			printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
-			delete pf._curSt;
-			pf._curSt = new vector<particle_type*>(*pf._nxtSt);
-			pf._nxtSt->clear();
-			pf.erase_shapes();
+			//printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
+			//delete pf._curSt;
+			//pf._curSt = new vector<particle_type*>(*pf._nxtSt);
+			//pf._nxtSt->clear();
+			//pf.erase_shapes();
 			pf.draw_particles();
 		}
 
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 {
 	if( argc == 4 ) {
 		Parser *parse = new Parser();
-		
+		log_type *prev = NULL;
 		string map_name(argv[1]);
 		parse->read_beesoft_map(map_name.c_str());
 
@@ -289,31 +289,125 @@ int main(int argc, char **argv)
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());  //output of log 
 
-		pf pf(parse->_my_map, stoi(string(argv[3])), 0); 
+		pf filter(parse->_my_map, stoi(string(argv[3])), 0); 
 
+		for(int i = 0; i < parse->_logData->size(); i++)
+		{
+			log_type* dat = parse->_logData->at(i);
+
+			if(dat->type == L_DATA)
+			{
+				if(prev == NULL)
+				{
+					prev = dat;
+				}
+				else
+				{
+					particle_type delta;
+					delta.x = abs( dat->x - prev->x );
+					delta.y = abs( dat->y - prev->y );
+					delta.bearing = abs( dat->theta - prev->theta );
+					if( delta.x != 0.0 && delta.y != 0.0 && delta.bearing != 0.0 )
+					{
+						filter.sensor_update(dat);
+					}
+					else
+					{
+						printf("No movement\n");
+					}
+				}
+			}	
+			else
+			{
+				if(prev == NULL)
+				{
+					prev = dat;
+				}
+				else
+				{
+					particle_type delta;
+					delta.x = abs( dat->x - prev->x );
+					delta.y = abs( dat->y - prev->y );
+					delta.bearing = abs( dat->theta - prev->theta );
+					if( delta.x != 0.0 && delta.y != 0.0 && delta.bearing != 0.0 )
+					{
+						filter.motion_update(dat);
+					}
+					else
+					{
+						printf("No movement\n");
+					}
+				}
+			}
+			filter.erase_shapes();
+			filter.draw_particles();
+		}
+
+
+		/*
+		
 		int prev_ptr, curr_ptr;
-		for (int i = 0; i < parse->_logData->size() - 1; i++) {
+		int i = 0;
+		while (i < parse->_logData->size()) {
+			if()
 
-			prev_ptr = i;
-			curr_ptr = i + 1;
-
-			// motion model
-			pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
+		//for (int i = 0; i < parse->_logData->size() - 1; i++) {
+			
 
 			// print pointers, curSt, nxtSt
+			if (prev == NULL) {
+				prev_ptr = i;
+				prev = parse->_logData->at(prev_ptr);
+				i++;
+				continue;
+			}	
+
+			if (parse->_logData->at(i)->type != L_DATA) {
+				i++;
+				continue;
+			}
+			
+			curr_ptr = i;
+			log_type* dat = parse->_logData->at(curr_ptr);
+			i++;
+
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
 			//printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
 			//printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
 			
 			// sensor model
-			if (parse->_logData->at(curr_ptr)->type == L_DATA)
+			particle_type delta;
+			delta.x = abs( dat->x - prev->x );
+			delta.y = abs( dat->y - prev->y );
+			delta.bearing = abs( dat->theta - prev->theta );
+			if( delta.x != 0.0 && delta.y != 0.0 && delta.bearing != 0.0 )
 			{
+				// motion model
+				pf.motion_update(parse->_logData->at(curr_ptr), parse->_logData->at(prev_ptr));
 				pf.sensor_update(parse->_logData->at(curr_ptr));
+			}
+			else
+			{
+				printf("No movement\n");
+			}
+
+			prev_ptr = curr_ptr;
+			/*if (parse->_logData->at(curr_ptr)->type == L_DATA)
+			{
+				
+				if(prev == NULL)
+				{
+					prev = dat;
+				}
+				else
+				{
+					
+				}
 			}
 			
 			pf.erase_shapes();
 			pf.draw_particles();
-		}
+		}*/
 
 	} else {
 		cout << "ERROR: Enter dat file name" << endl;
