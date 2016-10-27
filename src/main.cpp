@@ -158,7 +158,9 @@ int main(int argc, char **argv)
 			filter.draw_range(p, readings);
 			this_thread::sleep_for(chrono::milliseconds(700));
 			filter.erase_shapes();
-		}*/
+		}*/	
+
+		log_type *prev = NULL;
 
 		for(int i = 0; i < parse->_logData->size(); i++)
 		{
@@ -166,9 +168,29 @@ int main(int argc, char **argv)
 
 			if(dat->type == L_DATA)
 			{
-				filter.sensor_update(dat);
-				filter.erase_shapes();
-				filter.draw_particles();
+				if(prev == NULL)
+				{
+					prev = dat;
+				}
+				else
+				{
+					particle_type delta;
+					delta.x = abs( dat->x - prev->x );
+					delta.y = abs( dat->y - prev->y );
+					delta.bearing = abs( dat->theta - prev->theta );
+					printf("dx = %f dy = %f dz = %f\n", delta.x, delta.y, delta.bearing);
+					if( delta.x != 0.0 && delta.y != 0.0 && delta.bearing != 0.0 )
+					{
+						filter.sensor_update(dat);
+					}
+					else
+					{
+						printf("No movement\n");
+					}
+				}
+				//filter.erase_shapes();
+				//filter.draw_particles();
+				
 			}	
 		}
 	} else {
@@ -250,7 +272,7 @@ int main(int argc, char **argv)
 #ifdef PF_UNIT_TEST
 int main(int argc, char **argv)
 {
-	if( argc == 3 ) {
+	if( argc == 4 ) {
 		Parser *parse = new Parser();
 		
 		string map_name(argv[1]);
@@ -267,7 +289,7 @@ int main(int argc, char **argv)
 	  	string filename(argv[2]);
 		parse->read_log_data(filename.c_str());  //output of log 
 
-		pf pf(parse->_my_map, 100, 0); 
+		pf pf(parse->_my_map, stoi(string(argv[3])), 0); 
 
 		int prev_ptr, curr_ptr;
 		for (int i = 0; i < parse->_logData->size() - 1; i++) {
@@ -280,22 +302,15 @@ int main(int argc, char **argv)
 
 			// print pointers, curSt, nxtSt
 			printf("\n%d %d\n", prev_ptr, curr_ptr);
-			printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
-			printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
+			//printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
+			//printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
 			
 			// sensor model
 			if (parse->_logData->at(curr_ptr)->type == L_DATA)
 			{
-				delete pf._curSt;
-				pf._curSt = new vector<particle_type*>(*pf._nxtSt);
-				pf._nxtSt->clear();
-
 				pf.sensor_update(parse->_logData->at(curr_ptr));
 			}
 			
-			delete pf._curSt;
-			pf._curSt = new vector<particle_type*>(*pf._nxtSt);
-			pf._nxtSt->clear();
 			pf.erase_shapes();
 			pf.draw_particles();
 		}

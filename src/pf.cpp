@@ -247,7 +247,7 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 			y_iter += (y_iter == y1_m) ? 0 : yInc_m;
 		}*/
 		int beam = static_cast<int>( beam_deg / beam_resolution );
-		expected->at(beam) = expected_range;
+		expected->at(beam) = _map->resolution*expected_range; //cm
 	}
 
 	//calculate the expected readings
@@ -255,11 +255,13 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 }
 
 //Helper function: uses sensor model and map to get weight of a particle
-float pf::getParticleWeight( particle_type *particle, log_type *data ) const
+float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 {
-	vector<float> *exp_readings = expectedReadings( particle );
+	vector<float> *exp_readings = expectedReadings( particle ); //cm
 	vector<float> *ws = new vector<float>( static_cast<int>(beam_fov / beam_resolution) );
 	float *beamReadings = data->r;
+	//erase_shapes();
+	//draw_range(particle, exp_readings);
 
 	// iterate through each beam
 #if PARALLELIZE == 1
@@ -269,11 +271,11 @@ float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 	{
 		int beam = static_cast<int>(beam_deg / beam_resolution);
 		
-		float reading = beamReadings[beam] / _map->resolution;
+		float reading = beamReadings[beam]; /*cm*/
 
 		// for each beam get expected range reading
-		float expected_reading = exp_readings->at(beam);
-
+		float expected_reading = exp_readings->at(beam); /*cm*/
+		//printf("expected_reading: %f reading: %f\n", expected_reading, reading);
 		// get weight from the actual reading for that beam
 		_bmm->set_param(P_HIT_U, expected_reading);
 		float p_reading = _bmm->getP(reading);
@@ -289,7 +291,7 @@ float pf::getParticleWeight( particle_type *particle, log_type *data ) const
 		tot += log(w); //TODO: sum of log
 		//tot *= w;
 	}
-	return tot;
+	return (tot);
 }
 
 // TESTER : ABHISHEK
@@ -303,6 +305,7 @@ void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 	for (int i = 0; i < _curSt->size(); i++)
 	{
 		float new_weight = r + static_cast<float>(i) / _curSt->size();
+		//printf("c: %f, nw: %f\n", c, new_weight);
 		while (c < new_weight)
 		{
 			idx++;
@@ -311,6 +314,7 @@ void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 		particle_type *particle = (*_curSt)[idx];
 		resampledSt->push_back(particle);
 	}
+	//printf("\n");
 }
 
 //Main function to update state using laser reading
@@ -320,7 +324,9 @@ void pf::sensor_update( log_type *data )
 	//unique_lock<mutex> lock_nxtSt(_nxtStMutex);	
 	vector<float> *weights = new vector<float>();
 	//iterate through all particles (TODO: Look into parallelizing)
-	float tot_w = 0.0;
+	float min_w = 0.0;
+	float max_w = 0.0;
+	bool init = false;
 	for( particle_type *x_m : *_curSt )
 	{
 		//get P(Z|X,map) = weight of particle
@@ -328,13 +334,30 @@ void pf::sensor_update( log_type *data )
 
 		//store weight in vector
 		weights->push_back(weight_x_m);
-		tot_w += weight_x_m;
+		//printf("W_u: %f\n", weight_x_m);
+		if( !init )
+		{
+			init = true;
+			max_w = weight_x_m;
+			min_w = weight_x_m;
+		}
+		else
+		{
+			max_w = (weight_x_m > max_w) ? weight_x_m : max_w;
+			min_w = (weight_x_m < min_w) ? weight_x_m : min_w; 
+		}
 	}
-
-	//normalize
+	//scale 0 - 1
+	float total_w = 0.0;
 	for(int i = 0; i < weights->size(); i++)
 	{
-		weights->at(i) /= tot_w;
+		weights->at(i) = (weights->at(i) - min_w) / (max_w - min_w);
+		total_w += weights->at(i);
+	}
+	//normal sum = 1
+	for(int i = 0; i < weights->size(); i++)
+	{
+		weights->at(i) = weights->at(i) / total_w;
 	}
 
 	//using low covariance sampling
@@ -342,6 +365,12 @@ void pf::sensor_update( log_type *data )
 	delete _curSt;
 	_curSt = new vector<particle_type*>(*_nxtSt);
 	_nxtSt->clear();
+
+	for( particle_type *x_m : *_curSt )
+	{
+		printf("Cur St: %f %f\n", x_m->x, x_m->y);
+	}
+	printf("\n");
 }
 
 /* MOTION UPDATE */
@@ -456,6 +485,10 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 		printf("y: %f + %f = %f\n", particle->y, dP.y, nxtParticle->y);
 		printf("bearing: %f + %f = %f\n", particle->bearing, dP.bearing, nxtParticle->bearing);*/
 	}
+
+	delete _curSt;
+	_curSt = new vector<particle_type*>(*_nxtSt);
+	_nxtSt->clear();
 }
 
 #if UI == 1
@@ -505,8 +538,8 @@ void pf::motion_update( log_type *data, log_type *prev_data)
 			float beam_deg = beam * beam_resolution;
 			float beam_rad = beam_deg * M_PI / 180.0;
 
-			float x1_s = readings->at(beam) *  sin(beam_rad);
-			float y1_s = readings->at(beam) * -cos(beam_rad);
+			float x1_s = ( readings->at(beam) / _map->resolution ) *  sin(beam_rad);
+			float y1_s = ( readings->at(beam) / _map->resolution ) * -cos(beam_rad);
 
 			_H_s_p << 1, 0, x1_s + 2.50,
 					  0, 1, y1_s,

@@ -75,7 +75,7 @@ public:
 
 	vector<float> *expectedReadings( particle_type *particle ) const;
 
-	float getParticleWeight( particle_type *particle, log_type *data ) const;
+	float getParticleWeight( particle_type *particle, log_type *data );
 
 	void resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws );
 
