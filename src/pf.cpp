@@ -212,7 +212,7 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 				break;
 			}
 
-			if( grid_data[pt.x][pt.y] <= obst_thres )
+			if( grid_data[pt.x][pt.y] <= 0.7 )
 			{
 				expected_range = euclid(x0_m, y0_m, pt.x, pt.y);
 				break;
@@ -283,8 +283,8 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 		_bmm->set_param(P_HIT_U, expected_reading);
 		float p_reading = _bmm->getP(reading);
 
-		//printf("P(Z | X,M) = %f %f\n", abs(expected_reading - reading), p_reading);
-		ws->at(beam) = p_reading; 
+		ws->at(beam) = log(p_reading); 
+		//printf("P(Z | X,M) = %f %f\n", abs(expected_reading - reading), ws->at(beam));
 	}
 
 	// calculate total weight
@@ -292,10 +292,12 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 	float tot = 0.0;
 	for(float w : *ws)
 	{
-		tot += log(w); //TODO: sum of log
+		tot += w; //TODO: sum of log
 		//tot *= w;
 	}
-	return (tot);
+	tot = tot / ws->size();
+	printf("%f %f\n", tot, exp(tot));
+	return exp(tot);
 }
 
 // TESTER : ABHISHEK

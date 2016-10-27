@@ -122,7 +122,7 @@ float beamMeasurementModel::eval_pShort(float x_t) const
 	{
 		float exp_term = -1.0 * _pShortLambda * x_t;
 		//un normalized value
-		float unN_val = 0.5 * exp(exp_term);
+		float unN_val = 1 * exp(exp_term);
 		//normalize
 		exp_term = -1.0 * _pShortLambda * _uHit;
 		float eta = 1 ;/// ( 1 - exp(exp_term) );
@@ -176,7 +176,7 @@ float beamMeasurementModel::getP(float x_t) const
 	float hitW = 750;
 	float shortW = 1;
 	float maxW = 0;
-	float randW = 1;
+	float randW = 5;
 
 	float p = hitW * pHit + shortW * pShort + maxW * pMax + randW * pRand;
 
