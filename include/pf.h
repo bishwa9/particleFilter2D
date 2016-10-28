@@ -86,7 +86,7 @@ public:
 	float data_sample(float u, float sigma) const;
 
 	void init();
-//public:
+
 	static const int beam_fov = 180; 
 	static const int beam_resolution = 1; 
 	static const int res_x = 10;

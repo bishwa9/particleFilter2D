@@ -27,7 +27,7 @@ public:
 	float eval_pMax(float) const;
 	float eval_pShort(float) const;
 	float eval_pHit(float) const;
-//public:
+
 	beamMeasurementModel();
 	bool set_param(param, float);
 	bool get_param(param, float*) const;

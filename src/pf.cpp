@@ -62,8 +62,7 @@ float pf::RandomFloat(float min, float max)
 	return min + r * (max - min);
 }
 
-// TESTER : ABHISHEK
-// TESTED!
+// PARTICLE INITIALIZATION
 void pf::init()
 {
 	for (int i = 0; i < _maxP; i++) 
@@ -136,9 +135,7 @@ float euclid(float x1, float y1, float x2, float y2)
 }
 
 
-// TESTER : BISHWAMOY SINHA FUCKING ROY
-// TEST : BMM IS DONE, FOR A PARTICLE TEST EXPECTED READINGS
-// TESTING DONE
+// METHOD TO GENERATE EXPECTED READINGS
 vector<float> *pf::expectedReadings( particle_type *particle ) const
 {
 	//unique_lock<mutex> lock_map(_mapMutex); //released when exiting this function
@@ -186,8 +183,6 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 		int y1_m = convToGrid_y( _H_s_m_1(1, 2) );
 		int x0_m = convToGrid_x( particle_x );
 		int y0_m = convToGrid_y( particle_y );
-		/*int x_iter = x0_m;
-		int y_iter = y0_m;*/
 
 		float expected_range = 0.0;
 
@@ -225,31 +220,6 @@ vector<float> *pf::expectedReadings( particle_type *particle ) const
 			}
 		}
 
-
-		/*while(true)
-		{
-			//printf("x_iter: %d, y_iter: %d ", x_iter, y_iter);
-			if(x_iter == x1_m && y_iter == y1_m)
-			{
-				expected_range = max_range;
-				break;
-			}
-			else if(x_iter >= _map->max_x ||  //out of map range
-					y_iter >= _map->max_y || 
-					x_iter <= _map->min_x || 
-					y_iter <= _map->min_y)
-			{
-				expected_range = euclid(x0_m, y0_m, x_iter, y_iter);
-				break;
-			}
-			else if( grid_data[x_iter][y_iter] <= obst_thres )
-			{
-				expected_range = euclid(x0_m, y0_m, x_iter, y_iter);
-				break;
-			}
-			x_iter += (x_iter == x1_m) ? 0 : xInc_m;
-			y_iter += (y_iter == y1_m) ? 0 : yInc_m;
-		}*/
 		int beam = static_cast<int>( beam_deg / beam_resolution );
 		expected->at(beam) = _map->resolution * expected_range; //cm
 	}
@@ -267,12 +237,7 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 	vector<float> *exp_readings = expectedReadings( particle ); //cm
 	vector<float> *ws = new vector<float>( static_cast<int>(beam_fov / beam_resolution) );
 	float *beamReadings = data->r;
-	//vector<float> *actual_readings = new vector<float>(*beamReadings, 180);
-	//erase_shapes();
-	//draw_range(particle, exp_readings);
-	//draw_range(particle, actual_readings);
 
-	// iterate through each beam
 #if PARALLELIZE == 1
 #pragma omp parallel for
 #endif
@@ -284,31 +249,25 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 
 		// for each beam get expected range reading
 		float expected_reading = exp_readings->at(beam); /*cm*/
-		//printf("expected_reading: %f reading: %f\n", expected_reading, reading);
+		
 		// get weight from the actual reading for that beam
 		_bmm->set_param(P_HIT_U, expected_reading);
 		float p_reading = _bmm->getP(reading);
 
 		ws->at(beam) = log(p_reading); 
-		//printf("P(Z | X,M) = %f %f %f\n", expected_reading, reading, ws->at(beam));
+		
 	}
 
 	// calculate total weight
-	//float tot = 1.0;
 	float tot = 0.0;
 	for(float w : *ws)
 	{
 		tot += w; //TODO: sum of log
-		//printf("%f %f\n", tot, w);
-		//tot *= w;
 	}
-	//tot = tot / ws->size();
 	
 	return (tot);
 }
 
-// TESTER : ABHISHEK
-// TEST : TEST AFTER VISUALIZER IS DONE
 //Helper function: uses low variance sampling to resample based on particle weights
 void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 {
@@ -318,7 +277,6 @@ void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 	for (int i = 0; i < _curSt->size(); i++)
 	{
 		float new_weight = r + static_cast<float>(i) / _curSt->size();
-		//printf("c: %f, nw: %f\n", c, new_weight);
 		while (c < new_weight)
 		{
 			idx++;
@@ -326,9 +284,7 @@ void pf::resampleW( vector< particle_type *> *resampledSt, vector<float> *Ws )
 		}
 		particle_type *particle = (*_curSt)[idx];
 		resampledSt->push_back(particle);
-		//printf("idx: %d ", idx);
 	}
-	//printf("\n");
 }
 
 //Main function to update state using laser reading
@@ -348,7 +304,7 @@ void pf::sensor_update( log_type *data )
 
 		//store weight in vector
 		weights->push_back(weight_x_m);
-		//printf("W_u: %f\n", weight_x_m);
+		
 		if( !init )
 		{
 			init = true;
@@ -392,16 +348,9 @@ void pf::sensor_update( log_type *data )
 	//erase_shapes();
 	draw_range(_curSt->at(bestP), actual_readings);
 
-	/*for( particle_type *x_m : *_curSt )
-	{
-		printf("Cur St: %f %f\n", x_m->x, x_m->y);
-	}
-	printf("\n");*/
 }
 
 /* MOTION UPDATE */
-// TESTER : ERIC
-// TEST : PARSE MAP AND LOG FILE, ACCESS ODOMETRY DATA ITERATIVELY, CHECK STATE UPDATES
 float pf::data_sample(float u, float sigma) const
 {
 	//sample var
@@ -452,17 +401,9 @@ void pf::motion_update( log_type *data )
 		nxtParticle->y = particle->y + d_trans_hat * sin(particle->bearing + d_rot1_hat);
 		nxtParticle->bearing = particle->bearing + d_rot1_hat + d_rot2_hat;
 
-		// nxtParticle->x = particle->x + d_trans_hat * sin(particle->bearing + d_rot1_hat);
-		// nxtParticle->y = particle->y - d_trans_hat * cos(particle->bearing + d_rot1_hat);
-		// nxtParticle->bearing = particle->bearing + d_rot1_hat + d_rot2_hat - M_PI/2;
-
 		// push state
 		_nxtSt->push_back(nxtParticle);
-
-		// printf("dx: %f, dy: %f, db: %f\n", d_trans_hat * cos(particle->bearing + d_rot1_hat), d_trans_hat * sin(particle->bearing + d_rot1_hat), d_rot1_hat + d_rot2_hat);
-		/*printf("x: %f + %f = %f\n", particle->x, dP.x, nxtParticle->x);
-		printf("y: %f + %f = %f\n", particle->y, dP.y, nxtParticle->y);
-		printf("bearing: %f + %f = %f\n", particle->bearing, dP.bearing, nxtParticle->bearing);*/
+		
 	}
 
 	delete _curSt;
