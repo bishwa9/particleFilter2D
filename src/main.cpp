@@ -255,7 +255,6 @@ int main(int argc, char **argv)
 			//prev_ptr = i;
 			//curr_ptr = i+ 1;
 
-			printf("\n%d %d\n", prev_ptr, curr_ptr);
 			pf.motion_update(parse->_logData->at(curr_ptr));
 			printf("Current State: %f %f %f\n", pf._curSt->at(0)->x, pf._curSt->at(0)->y, pf._curSt->at(0)->bearing);
 			//printf("Next State: %f %f %f\n", pf._nxtSt->at(0)->x, pf._nxtSt->at(0)->y, pf._nxtSt->at(0)->bearing);
@@ -265,11 +264,12 @@ int main(int argc, char **argv)
 			//pf.erase_shapes();
 			pf.draw_particles();
 		}
-
+		imwrite("motionModel.jpg", *pf._mapMat);
 	} else {
 		cout << "ERROR: Enter dat file name" << endl;
 	}
 	
+
 	return 0;
 }
 
@@ -347,6 +347,10 @@ int main(int argc, char **argv)
 			}
 			filter.erase_shapes();
 			filter.draw_particles();
+			if (i == 0)
+			{
+				this_thread::sleep_for(chrono::seconds(20));
+			}
 		}
 
 

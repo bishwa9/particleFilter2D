@@ -1,10 +1,10 @@
 #include "bmm.h"
 
 beamMeasurementModel::beamMeasurementModel():
-_maxRange(8000),
+_maxRange(10000),
 _minRange(0),
 _pShortLambda(0.005),
-_startMax(8000-100),
+_startMax(10000-100),
 _uHit(2),
 _sigmaHit(600)
 {}
@@ -174,7 +174,7 @@ float beamMeasurementModel::getP(float x_t) const
 
 	// weighted average
 	float hitW = 3000;
-	float shortW = 0;
+	float shortW = 0.2;
 	float maxW = 50;
 	float randW = 100;
 

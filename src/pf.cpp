@@ -77,7 +77,7 @@ void pf::init()
 		int x_ = particle->x / _map->resolution;
 		int y_ = particle->y / _map->resolution;
 
-		while (_map->cells[x_][y_] == -1 || _map->cells[x_][y_] <= obst_thres) 
+		while (_map->cells[x_][y_] == -1 || _map->cells[x_][y_] <= 0.99) 
 		{
 			particle->x = RandomFloat( _map->min_x * _map->resolution, _map->max_x * _map->resolution);
 			particle->y = RandomFloat( _map->min_y * _map->resolution, _map->max_y * _map->resolution);
@@ -299,7 +299,7 @@ float pf::getParticleWeight( particle_type *particle, log_type *data/*cm*/ )
 	for(float w : *ws)
 	{
 		tot += w; //TODO: sum of log
-		printf("%f %f\n", tot, w);
+		//printf("%f %f\n", tot, w);
 		//tot *= w;
 	}
 	//tot = tot / ws->size();
@@ -402,26 +402,6 @@ void pf::sensor_update( log_type *data )
 /* MOTION UPDATE */
 // TESTER : ERIC
 // TEST : PARSE MAP AND LOG FILE, ACCESS ODOMETRY DATA ITERATIVELY, CHECK STATE UPDATES
-particle_type pf::motion_sample(particle_type u, particle_type sigma) const
-{
-	//sample x
-	normal_distribution<float> x_norm(u.x, sigma.x);
-	float dx_sample = x_norm(*_generator);
-	//sample y
-	normal_distribution<float> y_norm(u.y, sigma.y);
-	float dy_sample = y_norm(*_generator);
-	//sample bearing
-	normal_distribution<float> bearing_norm(u.bearing, sigma.bearing);
-	float db_sample = bearing_norm(*_generator);
-
-	particle_type dP;
-	dP.x = dx_sample;
-	dP.y = dy_sample;
-	dP.bearing = db_sample;
-
-	return dP;
-}
-
 float pf::data_sample(float u, float sigma) const
 {
 	//sample var
@@ -432,7 +412,7 @@ float pf::data_sample(float u, float sigma) const
 }
 
 void pf::motion_update( log_type *data )
-{
+{	
 	if( _prevOdom == NULL )
 	{
 		_prevOdom = data;
@@ -443,15 +423,12 @@ void pf::motion_update( log_type *data )
 	_prevOdom = data;
 
 	// variance 
-	float sigma = 0.05;
-	float alpha = 0.05;	
+	float alpha = 0.01;	
 
 	// detla x, y, bearing 
 	float d_rot1 = atan2(data->y - prev_data->y,data->x - prev_data->x) - prev_data->theta;
 	float d_trans = sqrt((prev_data->x - data->x)*(prev_data->x - data->x) + (prev_data->y - data->y)*(prev_data->y - data->y));
 	float d_rot2 = data->theta - prev_data->theta - d_rot1;
-
-	
 
 	//TODO: update the next state for now
 	//unique_lock<mutex> lock_curSt(_curStMutex);
@@ -475,9 +452,14 @@ void pf::motion_update( log_type *data )
 		nxtParticle->y = particle->y + d_trans_hat * sin(particle->bearing + d_rot1_hat);
 		nxtParticle->bearing = particle->bearing + d_rot1_hat + d_rot2_hat;
 
+		// nxtParticle->x = particle->x + d_trans_hat * sin(particle->bearing + d_rot1_hat);
+		// nxtParticle->y = particle->y - d_trans_hat * cos(particle->bearing + d_rot1_hat);
+		// nxtParticle->bearing = particle->bearing + d_rot1_hat + d_rot2_hat - M_PI/2;
+
 		// push state
 		_nxtSt->push_back(nxtParticle);
 
+		// printf("dx: %f, dy: %f, db: %f\n", d_trans_hat * cos(particle->bearing + d_rot1_hat), d_trans_hat * sin(particle->bearing + d_rot1_hat), d_rot1_hat + d_rot2_hat);
 		/*printf("x: %f + %f = %f\n", particle->x, dP.x, nxtParticle->x);
 		printf("y: %f + %f = %f\n", particle->y, dP.y, nxtParticle->y);
 		printf("bearing: %f + %f = %f\n", particle->bearing, dP.bearing, nxtParticle->bearing);*/
